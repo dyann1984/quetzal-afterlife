@@ -1,5 +1,6 @@
 'use client';
-import {useMemo,useState} from 'react';
+import {useEffect,useMemo,useState} from 'react';
+import {sceneStore} from '../lib/sceneStore';
 import dynamic from 'next/dynamic';
 import {buildSceneModel,type Stage} from '../lib/experience';
 import {ingest,IngestError,DEFAULT_LIMITS,type Ingested} from '../lib/ingest';
@@ -147,6 +148,8 @@ export default function Engine({section,goto,experience}:{section:EngineSection|
 
  // Modelo de escena para la experiencia 3D: solo lectura del estado real del motor.
  const sceneModel=useMemo(()=>tables.length?buildSceneModel({evidences:items.map(i=>i.evidence),diagnoses,tables,schema,model,synthetic}):null,[items,diagnoses,tables,schema,model,synthetic]);
+ // Publica el estado real para la visualización (hero del Dashboard). El motor no depende de ella.
+ useEffect(()=>{sceneStore.set(sceneModel);},[sceneModel]);
  const hidden=section===null;
  return <><div hidden={hidden}>
   {section==='Discovery'&&<div className="workspace">

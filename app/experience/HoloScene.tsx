@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 /**
  * Escena WebGL (React Three Fiber). Solo VISUALIZA el SceneModel; no importa el motor.
  * Se carga de forma diferida (dynamic import) para no penalizar la carga inicial.
@@ -7,7 +7,8 @@ import {useEffect,useLayoutEffect,useMemo,useRef} from 'react';
 import {Canvas,useFrame,useThree} from '@react-three/fiber';
 import {OrbitControls} from '@react-three/drei';
 import * as THREE from 'three';
-import {buildQuetzalCloud,PARTICLE_TIERS,type Quality,type SceneModel,type Stage,type Vec3} from '../../lib/experience';
+import type {Quality,SceneModel,Stage,Vec3} from '../../lib/experience';
+import {AURA_COUNT,Aura,Bird,DataRing,DataTiles,Pedestal,Studio3D,makeShared} from './QuetzalBird';
 
 const BLUE=new THREE.Color('#2cc7fa'),GOLD=new THREE.Color('#d3b273'),RED=new THREE.Color('#ff7a7a'),DIM=new THREE.Color('#3b566a');
 
@@ -17,77 +18,6 @@ declare global{interface Window{__quetzalPerf?:PerfSample&{quality:string;stage:
 export interface HoloProps{
  scene:SceneModel;stage:Stage;quality:Quality;paused:boolean;autoRotate:boolean;explore:boolean;reducedMotion:boolean;runId:number;
  onContextLost:()=>void;onFps:(fps:number)=>void;
-}
-
-const VERT=`
-uniform float uProgress,uTime,uSize,uPixelRatio,uOpacity;
-attribute vec3 aStart;attribute float aDelay,aKind,aState;
-varying vec3 vColor;varying float vAlpha;
-void main(){
-  float p=clamp((uProgress-aDelay*0.65)/0.35,0.0,1.0);p=p*p*(3.0-2.0*p);
-  float lost=step(1.5,aState),rec=step(0.5,aState)-lost;
-  float pm=mix(p,0.0,lost);                 // las partículas de registros perdidos NO se materializan
-  vec3 pos=mix(aStart,position,pm);
-  float w=sin(uTime*1.1+position.y*2.3+position.x*1.7);
-  pos+=vec3(w*0.018,cos(uTime*0.9+position.x*2.0)*0.014,w*0.012)*(1.0-lost*0.5);
-  pos+=vec3(sin(uTime*0.35+aDelay*9.0),cos(uTime*0.3+aDelay*7.0),0.0)*0.18*lost*(0.6+0.4*p);
-  vec4 mv=modelViewMatrix*vec4(pos,1.0);
-  gl_Position=projectionMatrix*mv;
-  gl_PointSize=uSize*uPixelRatio*(1.0+0.6*step(2.5,aKind))*(1.0/-mv.z)*(1.0-0.35*lost);
-  vec3 blue=vec3(0.17,0.78,0.98),gold=vec3(0.83,0.70,0.45),red=vec3(0.75,0.28,0.28);
-  vec3 c=mix(blue,gold,step(2.5,aKind));
-  c=mix(c,gold,rec*(0.55+0.45*sin(uTime*3.0+aDelay*20.0)));
-  c=mix(c,red,lost);
-  vColor=c;
-  vAlpha=mix(0.95,0.28,lost)*smoothstep(0.0,0.08,p+lost)*uOpacity;
-}`;
-const FRAG=`
-varying vec3 vColor;varying float vAlpha;
-void main(){float d=length(gl_PointCoord-0.5);float a=smoothstep(0.5,0.0,d);gl_FragColor=vec4(vColor,a*vAlpha);}`;
-
-/** Actualiza los uniforms del shader (efecto imperativo sobre un objeto de three, fuera del render de React). */
-function writeUniforms(m:THREE.ShaderMaterial|null,v:{progress:number;time:number;pixelRatio:number;opacity:number}){
- if(!m)return;
- m.uniforms.uProgress.value=v.progress;m.uniforms.uTime.value=v.time;m.uniforms.uPixelRatio.value=v.pixelRatio;m.uniforms.uOpacity.value=v.opacity;
-}
-
-function QuetzalCloud({scene,quality,paused,reducedMotion,runId,scale,presence,position}:{scene:SceneModel;quality:Quality;paused:boolean;reducedMotion:boolean;runId:number;scale:number;presence:number;position:Vec3}){
- const dpr=useThree(s=>s.viewport.dpr);
- const cloud=useMemo(()=>buildQuetzalCloud(PARTICLE_TIERS[quality],scene.fractions),[quality,scene.fractions]);
- const geo=useMemo(()=>{
-  const g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.BufferAttribute(cloud.target,3));
-  g.setAttribute('aStart',new THREE.BufferAttribute(cloud.start,3));
-  g.setAttribute('aDelay',new THREE.BufferAttribute(cloud.delay,1));
-  g.setAttribute('aKind',new THREE.BufferAttribute(Float32Array.from(cloud.kind),1));
-  g.setAttribute('aState',new THREE.BufferAttribute(Float32Array.from(cloud.state),1));
-  g.computeBoundingSphere();g.boundingSphere!.radius=9;
-  return g;
- },[cloud]);
- const uniforms=useMemo(()=>({uProgress:{value:0},uTime:{value:0},uSize:{value:34},uPixelRatio:{value:1},uOpacity:{value:1}}),[]);
- const matRef=useRef<THREE.ShaderMaterial>(null);
- const t0=useRef(0),time=useRef(0);
- useEffect(()=>{t0.current=0;const u=matRef.current?.uniforms;if(u)u.uProgress.value=reducedMotion?1:0;},[runId,reducedMotion]);
- useEffect(()=>()=>{geo.dispose();},[geo]);
- useFrame((_,dt)=>{
-  if(paused)return;
-  time.current+=reducedMotion?0:dt;t0.current+=dt;
-  // La materialización dura 4,2 s; las partículas de registros perdidos nunca se ensamblan (ver shader).
-  writeUniforms(matRef.current,{progress:reducedMotion?1:Math.min(1,t0.current/4.2),time:time.current,pixelRatio:dpr,opacity:presence});
- });
- return <points geometry={geo} scale={scale} position={position} frustumCulled={false}>
-  <shaderMaterial ref={matRef} vertexShader={VERT} fragmentShader={FRAG} transparent depthWrite={false} blending={THREE.AdditiveBlending} uniforms={uniforms}/>
- </points>;
-}
-
-function Scanner({paused,reducedMotion}:{paused:boolean;reducedMotion:boolean}){
- const ref=useRef<THREE.Mesh>(null);const t=useRef(0);
- useFrame((_,dt)=>{if(paused||reducedMotion||!ref.current)return;t.current+=dt*0.35;ref.current.position.y=-4.4+((t.current%1))*6.2;(ref.current.material as THREE.MeshBasicMaterial).opacity=0.22*Math.sin(Math.PI*(t.current%1));});
- return <>
-  <mesh ref={ref} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[2.1,2.4,96]}/><meshBasicMaterial color={BLUE} transparent opacity={0.15} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false}/></mesh>
-  <mesh position={[0,-4.55,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[2.2,2.28,96]}/><meshBasicMaterial color={GOLD} transparent opacity={0.8}/></mesh>
-  <mesh position={[0,-4.55,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.4,1.43,96]}/><meshBasicMaterial color={BLUE} transparent opacity={0.5}/></mesh>
- </>;
 }
 
 /** Rótulo como sprite con textura propia (canvas 2D local): sin portales al DOM ni fuentes externas. */
@@ -203,7 +133,7 @@ function PerfProbe({quality,stage,onFps}:{quality:Quality;stage:Stage;onFps:(f:n
   if(a.t>=0.5){
    const fps=a.n/a.t;a.samples.push(Math.round(fps));if(a.samples.length>60)a.samples.shift();
    const i=gl.info;
-   window.__quetzalPerf={fps:Math.round(fps*10)/10,frames:a.total,drawCalls:i.render.calls,triangles:i.render.triangles,points:i.render.points,geometries:i.memory.geometries,textures:i.memory.textures,particles:PARTICLE_TIERS[quality],dpr:gl.getPixelRatio(),quality,stage,samples:[...a.samples]};
+   window.__quetzalPerf={fps:Math.round(fps*10)/10,frames:a.total,drawCalls:i.render.calls,triangles:i.render.triangles,points:i.render.points,geometries:i.memory.geometries,textures:i.memory.textures,particles:AURA_COUNT[quality],dpr:gl.getPixelRatio(),quality,stage,samples:[...a.samples]};
    onFps(fps);a.t=0;a.n=0;
   }
  });
@@ -226,14 +156,23 @@ function Rig({stage,paused,autoRotate,explore,reducedMotion}:{stage:Stage;paused
 export default function HoloScene(p:HoloProps){
  const {scene,stage,quality}=p;
  const dprMax=quality==='alta'?2:quality==='media'?1.5:1;
- const q=stage==='materializar'?{scale:0.92,presence:1,pos:[0,1.0,0] as Vec3}:{scale:0.5,presence:0.3,pos:[0,0.2,-2.2] as Vec3};
+ const shared=useMemo(()=>makeShared(),[]);
+ const fractions=scene.fractions;
+ const hasData=scene.stats.declared>0;
  return <Canvas dpr={[1,dprMax]} camera={{position:[0,0.4,11],fov:48}} frameloop={p.paused?'demand':'always'}
    gl={{antialias:quality!=='baja',powerPreference:'high-performance',alpha:true}}
    onCreated={({gl})=>{gl.setClearColor(0x000000,0);}}
    style={{width:'100%',height:'100%',touchAction:'none'}} aria-hidden="true">
   <Rig stage={stage} paused={p.paused} autoRotate={p.autoRotate} explore={p.explore} reducedMotion={p.reducedMotion}/>
-  <QuetzalCloud scene={scene} quality={quality} paused={p.paused} reducedMotion={p.reducedMotion} runId={p.runId} scale={q.scale} presence={q.presence} position={q.pos}/>
-  {stage==='materializar'&&<group position={[0,0.95,0]} scale={0.92}><Scanner paused={p.paused} reducedMotion={p.reducedMotion}/></group>}
+  <Studio3D/>
+  {stage==='materializar'
+   ?<group position={[0,2.1,0]} scale={0.88}>
+     <Bird shared={shared} fractions={fractions} paused={p.paused} reduced={p.reducedMotion} runId={p.runId}/>
+     <Aura shared={shared} fractions={fractions} quality={quality} reducedMotion={p.reducedMotion}/>
+     <Pedestal/><DataRing paused={p.paused} reduced={p.reducedMotion}/>
+     {hasData&&<DataTiles counts={fractions} paused={p.paused} reduced={p.reducedMotion}/>}
+    </group>
+   :<group position={[0,0.8,-2.4] as Vec3} scale={0.42}><Aura shared={shared} fractions={fractions} quality={quality} opacity={0.28} reducedMotion={p.reducedMotion} forceComplete/></group>}
   {stage==='discovery'&&<Files scene={scene}/>}
   {stage==='recovery'&&<Columns scene={scene}/>}
   {stage==='reconstruction'&&<Network scene={scene}/>}

@@ -255,3 +255,38 @@ export function pickQuality(env: { width: number; cores?: number; memoryGb?: num
 }
 
 export function stepDown(q: Quality): Quality { return q === 'alta' ? 'media' : 'baja'; }
+
+// ─── Aura de partículas sobre la silueta 3D + teselas de datos ───────────────
+
+/** Construye la nube a partir de puntos muestreados sobre la geometría real del ave. Los puntos "perdidos" nunca se ensamblan. */
+export function cloudFromSamples(points: Float32Array, gold: Uint8Array, fractions: { intact: number; recovered: number; lost: number }, seed = 5): QuetzalCloud {
+  const count = points.length / 3, rnd = mulberry32(seed);
+  const start = new Float32Array(count * 3), delay = new Float32Array(count), kind = new Uint8Array(count);
+  let ymin = Infinity, ymax = -Infinity;
+  for (let i = 0; i < count; i++) { ymin = Math.min(ymin, points[i * 3 + 1]); ymax = Math.max(ymax, points[i * 3 + 1]); }
+  const span = Math.max(ymax - ymin, 1e-6);
+  for (let i = 0; i < count; i++) {
+    const x = points[i * 3], y = points[i * 3 + 1], z = points[i * 3 + 2];
+    // dispersión radial desde el centro del ave
+    const dx = x, dy = y + 1.5, dz = z, len = Math.hypot(dx, dy, dz) || 1, push = 1.2 + rnd() * 3;
+    start[i * 3] = x + (dx / len) * push + (rnd() - 0.5); start[i * 3 + 1] = y + (dy / len) * push + (rnd() - 0.5); start[i * 3 + 2] = z + (dz / len) * push + (rnd() - 0.5) * 2;
+    delay[i] = 0.7 * ((y - ymin) / span) + 0.3 * rnd();   // de abajo hacia arriba
+    kind[i] = gold[i] ? 3 : 0;
+  }
+  return { count, target: points, start, delay, kind, state: assignStates(count, fractions, seed + 2) };
+}
+
+export type TileState = 'intacto' | 'recuperado' | 'perdido';
+/** Reparte N teselas por estado con el método del mayor resto. Si hay pérdidas reales, al menos una tesela las representa. */
+export function tileStates(counts: { intact: number; recovered: number; lost: number }, n = 40): TileState[] {
+  const total = counts.intact + counts.recovered + counts.lost;
+  if (total <= 0 || n <= 0) return [];
+  const exact = [counts.intact, counts.recovered, counts.lost].map(c => (c / total) * n);
+  const base = exact.map(Math.floor);
+  let rest = n - base.reduce((a, b) => a + b, 0);
+  const order = exact.map((e, i) => ({ i, r: e - Math.floor(e) })).sort((a, b) => b.r - a.r);
+  for (let k = 0; rest > 0; k = (k + 1) % 3, rest--) base[order[k].i]++;
+  const src = [counts.intact, counts.recovered, counts.lost];
+  for (const i of [2, 1]) if (src[i] > 0 && base[i] === 0) { base[0]--; base[i]++; }
+  return [...Array(base[0]).fill('intacto'), ...Array(base[1]).fill('recuperado'), ...Array(base[2]).fill('perdido')] as TileState[];
+}

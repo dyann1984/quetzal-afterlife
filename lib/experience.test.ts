@@ -5,7 +5,7 @@ import { recoverTable, type RecoveredTable } from './recovery';
 import { inferSchema } from './schema';
 import { reconstruct, DEFAULT_OPTIONS } from './reconstruct';
 import { buildScenario } from './scenario';
-import { buildSceneModel, buildQuetzalCloud, assignStates, pickQuality, stepDown, PARTICLE_TIERS, STAGES, CUBE_CAP, type SceneInput } from './experience';
+import { cloudFromSamples, tileStates, buildSceneModel, buildQuetzalCloud, assignStates, pickQuality, stepDown, PARTICLE_TIERS, STAGES, CUBE_CAP, type SceneInput } from './experience';
 
 async function input(approve = false): Promise<SceneInput> {
   const evidences: EvidenceRef[] = [], diagnoses: Record<string, Diagnosis> = {}, tables: RecoveredTable[] = [];
@@ -97,5 +97,30 @@ describe('calidad adaptativa', () => {
   });
   it('degrada sin pasar de baja', () => {
     expect(stepDown('alta')).toBe('media'); expect(stepDown('media')).toBe('baja'); expect(stepDown('baja')).toBe('baja');
+  });
+});
+
+describe('cloudFromSamples y tileStates', () => {
+  const pts = Float32Array.from(Array.from({ length: 300 }, (_, i) => Math.sin(i) * 2));
+  const gold = new Uint8Array(100).map((_, i) => (i % 3 === 0 ? 1 : 0));
+  it('conserva los puntos como destino, ordena de abajo hacia arriba y reparte estados reales', () => {
+    const c = cloudFromSamples(pts, gold, { intact: 0.8, recovered: 0.1, lost: 0.1 });
+    expect(c.count).toBe(100);
+    expect(c.target).toBe(pts);
+    expect(Array.from(c.state).filter(s => s === 2).length).toBe(10);
+    expect(Array.from(c.kind).filter(k => k === 3).length).toBe(34);
+    let lo = Infinity, hi = -Infinity, dlo = 0, dhi = 0;
+    for (let i = 0; i < 100; i++) { const y = pts[i * 3 + 1]; if (y < lo) { lo = y; dlo = c.delay[i]; } if (y > hi) { hi = y; dhi = c.delay[i]; } }
+    expect(dlo).toBeLessThan(dhi);
+  });
+  it('tileStates suma siempre n, es proporcional y no oculta pérdidas reales', () => {
+    const t = tileStates({ intact: 71, recovered: 4, lost: 2 }, 40);
+    expect(t.length).toBe(40);
+    expect(t.filter(x => x === 'perdido').length).toBe(1);        // 2/77 * 40 = 1.04
+    expect(t.filter(x => x === 'recuperado').length).toBe(2);     // 4/77 * 40 = 2.08
+    const tiny = tileStates({ intact: 1000, recovered: 0, lost: 1 }, 40);
+    expect(tiny.filter(x => x === 'perdido').length).toBe(1);     // al menos una si hay pérdidas
+    expect(tileStates({ intact: 5, recovered: 0, lost: 0 }, 10).every(x => x === 'intacto')).toBe(true);
+    expect(tileStates({ intact: 0, recovered: 0, lost: 0 }, 10)).toEqual([]);
   });
 });

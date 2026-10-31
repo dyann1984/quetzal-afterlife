@@ -11,6 +11,7 @@ import {
 import {exportInventoryCsv,exportInventoryJson,exportVerificationCsv,exportVerificationJson,inferredFields} from '../lib/export';
 import Engine,{ENGINE_SECTIONS,type EngineSection} from './engine';
 import type {Stage} from '../lib/experience';
+import HeroHologram from './experience/HeroHologram';
 import {DEMO_CSV_A,DEMO_CSV_B,DEMO_INV_A,DEMO_INV_B,DEMO_VERIFICATION} from '../lib/demo';
 
 const sections=['Dashboard','Nueva recuperación','Laboratorio','Verificación','Archivo'] as const;
@@ -224,7 +225,7 @@ export default function Home(){
        <button className="secondary" onClick={()=>setSection('Discovery')} style={{marginTop:'22px'}}>Motor 2.0: descubrir y reconstruir →</button>
       </div>
      </div>
-     <div className="hero"><img src="/quetzal-logo.png" alt="Logo oficial de Quetzal Afterlife"/></div>
+     <HeroHologram onOpen={()=>setExpOpen(true)}/>
     </div>
     <div className="sectionhead">
      <div><span className="eyebrow">TU ESPACIO DE TRABAJO</span><h2>El camino de la recuperación</h2></div>
