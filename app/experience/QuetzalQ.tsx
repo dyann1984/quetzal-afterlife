@@ -1,14 +1,15 @@
-﻿'use client';
+'use client';
 /**
  * Emblema Q holográfico: plumas curvas con espesor, cabeza de quetzal, anillo, globo de malla, teselas y plataforma.
  * Material holográfico propio (transparencia aditiva, borde luminoso, líneas digitales dentro de cada pluma).
  * Honestidad de datos: la fracción de registros perdidos/recuperados del motor se traduce en celdas-voxel disueltas
  * o teñidas de oro. Sin evidencia cargada no hay disolución (emblema). La materialización avanza desde la cabeza.
  */
-import {useEffect,useMemo,useRef} from 'react';
+import {useEffect,useMemo,useRef,useSyncExternalStore} from 'react';
 import {useFrame,useThree} from '@react-three/fiber';
 import * as THREE from 'three';
 import {buildQ,sampleSurface,HEAD_CENTER,type QPart} from './q-geometry';
+import {GLB_HEAD,getGlbState,loadGlb,subscribeGlb} from './q-glb';
 import {cloudFromSamples,tileStates,type Quality,type TileState} from '../../lib/experience';
 
 export const REVEAL_FROM=0,REVEAL_TO=9.6,REVEAL_DONE=99,REVEAL_SECONDS=3.8;
@@ -138,13 +139,87 @@ function writeAura(m:THREE.ShaderMaterial|null,v:{progress:number;time:number;pi
  if(!m)return;m.uniforms.uProgress.value=v.progress;m.uniforms.uTime.value=v.time;m.uniforms.uPixelRatio.value=v.pixelRatio;m.uniforms.uOpacity.value=v.opacity;
 }
 
-let cached:ReturnType<typeof buildQ>|null=null;
-export const getQ=()=>cached??(cached=buildQ());
+// ─── Modelo artístico (GLB de Blender): cristal azul con filo cian, cuerpo opaco con borde, anillo aditivo ───
+const GVERT=`
+attribute float aU,aT,aPhase,aTone,aLayer;
+uniform float uTime;
+varying float vU,vT,vTone,vPh;varying vec3 vP,vN,vV;
+void main(){
+  vU=aU;vT=aT;vTone=aTone;vPh=aPhase;vP=position;
+  vec3 p=position;
+  #if MODE==4
+    float ang=sin(uTime*0.55+aPhase*7.0)*0.018*aT;
+    vec2 c=vec2(0.1,0.3);vec2 d=p.xy-c;float cs=cos(ang),sn=sin(ang);
+    p.xy=c+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs);
+    p.z+=sin(uTime*0.9+aPhase*9.0+aT*4.0)*0.05*aT;
+  #endif
+  vec4 mv=modelViewMatrix*vec4(p,1.0);
+  vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);
+  gl_Position=projectionMatrix*mv;
+}`;
+const GFRAG=`
+uniform float uTime,uReveal,uLost,uRec,uCell,uOpacity;
+varying float vU,vT,vTone,vPh;varying vec3 vP,vN,vV;
+float h3(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}
+void main(){
+  float dist=length(vP.xy-vec2(${GLB_HEAD[0].toFixed(2)},${GLB_HEAD[1].toFixed(2)}));
+  if(dist>uReveal)discard;                                  // la materialización avanza desde la cabeza
+  float hh=h3(floor(vP/uCell));
+  if(hh<uLost)discard;                                      // registros perdidos: celdas disueltas
+  float rc=step(uLost,hh)*step(hh,uLost+uRec);              // recuperados con daño: tinte dorado
+  vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;
+  vec3 v=normalize(vV);
+  float fres=pow(1.0-clamp(dot(n,v),0.0,1.0),2.0);
+  vec3 gold=vec3(0.95,0.76,0.38),cy=vec3(0.35,0.95,1.0),deep=vec3(0.01,0.08,0.6),mid=vec3(0.12,0.62,1.0);
+  bool solid=vU<-0.5;
+  float e=abs(vU-0.5)*2.0;
+  float edge=smoothstep(0.78,1.0,e);
+  float rib=1.0-smoothstep(0.0,0.05,e);
+  float vein=smoothstep(0.82,0.97,sin(vT*34.0+e*9.0)*0.5+0.5)*(1.0-e);
+  vec3 col;float a=1.0;
+  #if MODE==4
+    vec3 base=mix(deep,mid,smoothstep(0.0,0.7,vT))*(0.85+0.3*fract(vPh*7.13));
+    col=base*0.6+cy*edge*0.85+vec3(0.5,0.9,1.0)*(rib*0.22+vein*0.14)+cy*fres*0.22;
+    col=mix(col,gold*(0.7+0.5*edge),vTone*0.85);
+    a=0.36+0.5*edge+0.14*rib;
+  #elif MODE==5
+    if(vTone>2.5){col=vec3(0.75,1.0,1.0)*1.5;}
+    else if(solid){
+      col=mix(vec3(0.004,0.05,0.4),cy*0.9,pow(fres,1.4))+vec3(0.05,0.25,0.9)*(0.15+0.45*max(n.y,0.0));
+      col+=vec3(0.1,0.4,0.9)*smoothstep(0.93,1.0,sin(vP.y*50.0)*0.5+0.5)*0.07;
+      col=mix(col,gold*(0.5+0.5*max(dot(n,normalize(vec3(-0.3,0.7,0.6))),0.0)+0.3),step(0.5,vTone));
+    }else{
+      col=mix(deep,mid,smoothstep(0.0,0.7,vT))*0.7+cy*edge*0.8+vec3(0.5,0.9,1.0)*rib*0.2;
+    }
+  #else
+    col=mix(vec3(0.05,0.3,1.0),cy,fres*0.7)*0.85;a=0.5;
+  #endif
+  col=mix(col,gold,rc*0.45);
+  float ring=1.0-smoothstep(0.0,0.4,uReveal-dist);          // borde de la onda de materialización
+  col+=vec3(0.3,0.85,1.0)*ring*step(uReveal,20.0)*1.1;
+  gl_FragColor=vec4(col*uOpacity,a);
+}`;
+function glbMaterial(mode:4|5|6,shared:Shared){
+ const opaque=mode===5;
+ return new THREE.ShaderMaterial({defines:{MODE:mode},vertexShader:GVERT,fragmentShader:GFRAG,uniforms:shared.u as unknown as {[k:string]:THREE.IUniform},
+  transparent:!opaque,depthWrite:opaque,side:THREE.DoubleSide,blending:opaque?THREE.NoBlending:THREE.AdditiveBlending});
+}
+
+/** Partes del emblema: el GLB cuando está cargado; la geometría procedural solo si el GLB falla. */
+let proc:ReturnType<typeof buildQ>|null=null;
+const getProc=()=>proc??(proc=buildQ());
+export function useQuetzalParts():{source:'glb'|'procedural'|null;parts:QPart[]|null}{
+ const s=useSyncExternalStore(subscribeGlb,getGlbState,getGlbState);
+ useEffect(()=>{loadGlb();},[]);
+ return s.status==='ready'?{source:'glb',parts:s.parts}:s.status==='failed'?{source:'procedural',parts:getProc().parts}:{source:null,parts:null};
+}
 
 export function Aura({shared,fractions,quality,opacity=1,reducedMotion,forceComplete=false}:{shared:Shared;fractions:Fractions;quality:Quality;opacity?:number;reducedMotion:boolean;forceComplete?:boolean}){
  const dpr=useThree(s=>s.viewport.dpr);
- const cloud=useMemo(()=>{const s=sampleSurface(getQ().parts,AURA_COUNT[quality]);return cloudFromSamples(s.points,s.gold,fractions);},[quality,fractions]);
+ const {parts}=useQuetzalParts();
+ const cloud=useMemo(()=>{if(!parts)return null;const s=sampleSurface(parts,AURA_COUNT[quality]);return cloudFromSamples(s.points,s.gold,fractions);},[parts,quality,fractions]);
  const geo=useMemo(()=>{
+  if(!cloud)return null;
   const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.BufferAttribute(cloud.target,3));
   g.setAttribute('aStart',new THREE.BufferAttribute(cloud.start,3));
@@ -153,7 +228,7 @@ export function Aura({shared,fractions,quality,opacity=1,reducedMotion,forceComp
   g.setAttribute('aState',new THREE.BufferAttribute(Float32Array.from(cloud.state),1));
   return g;
  },[cloud]);
- useEffect(()=>()=>{geo.dispose();},[geo]);
+ useEffect(()=>()=>{geo?.dispose();},[geo]);
  const uniforms=useMemo(()=>({uProgress:{value:0},uTime:{value:0},uSize:{value:24},uPixelRatio:{value:1},uOpacity:{value:1}}),[]);
  const ref=useRef<THREE.ShaderMaterial>(null);
  useFrame(()=>{
@@ -161,6 +236,7 @@ export function Aura({shared,fractions,quality,opacity=1,reducedMotion,forceComp
   const progress=r>=REVEAL_DONE||reducedMotion||forceComplete?1:Math.min(1,Math.max(0,(r-REVEAL_FROM)/(REVEAL_TO-REVEAL_FROM)));
   writeAura(ref.current,{progress,time:reducedMotion?0:shared.u.uTime.value,pixelRatio:dpr,opacity});
  });
+ if(!geo)return null;
  return <points geometry={geo} frustumCulled={false}>
   <shaderMaterial ref={ref} vertexShader={PVERT} fragmentShader={PFRAG} transparent depthWrite={false} blending={THREE.AdditiveBlending} uniforms={uniforms}/>
  </points>;
@@ -205,12 +281,14 @@ export function DataTiles({counts,paused,reduced,decorative=false}:{counts:Fract
 const decorative0=(hasData:boolean,f:Fractions):Fractions=>hasData?f:{intact:1,recovered:0,lost:0};
 
 // ─── Composición ─────────────────────────────────────────────────────────────
+/** Recentra el modelo del GLB (centro ~(-0.4,0.2)) sobre el encuadre y la plataforma del hero. */
+const GLB_OFFSET:[number,number,number]=[0.9,-0.1,0];
 export function QuetzalQ({shared,fractions,quality,paused,reduced,runId,hasData,motion=true}:{shared:Shared;fractions:Fractions;quality:Quality;paused:boolean;reduced:boolean;runId:number;hasData:boolean;motion?:boolean}){
- const q=getQ();
- const mats=useMemo(()=>({0:holoMaterial(0,shared),1:holoMaterial(1,shared),2:holoMaterial(2,shared),3:holoMaterial(3,shared)}),[shared]);
+ const {source,parts}=useQuetzalParts();
+ const mats=useMemo(()=>({0:holoMaterial(0,shared),1:holoMaterial(1,shared),2:holoMaterial(2,shared),3:holoMaterial(3,shared),4:glbMaterial(4,shared),5:glbMaterial(5,shared),6:glbMaterial(6,shared)}),[shared]);
  useEffect(()=>()=>{Object.values(mats).forEach(m=>m.dispose());},[mats]);
  useEffect(()=>{setFractions(shared,fractions);},[shared,fractions]);
- const root=useRef<THREE.Group>(null),globe=useRef<THREE.LineSegments>(null);
+ const root=useRef<THREE.Group>(null),globe=useRef<THREE.Object3D>(null);
  const clock=useRef({t:0,el:0});
  useEffect(()=>{clock.current.el=0;},[runId]);
  useFrame((_,dt)=>{
@@ -226,10 +304,13 @@ export function QuetzalQ({shared,fractions,quality,paused,reduced,runId,hasData,
  const matFor=(k:QPart['kind'])=>k==='pluma'?mats[0]:k==='solido'?mats[1]:mats[2];
  return <>
   <group ref={root}>
-   {q.parts.map(p=>p.kind==='globo'
-    ?<lineSegments key={p.id} ref={globe} geometry={p.geometry} position={[1.4,-0.25,-0.8]} frustumCulled={false}><lineBasicMaterial color="#2cc7fa" transparent opacity={0.24} blending={THREE.AdditiveBlending} depthWrite={false}/></lineSegments>
-    :<group key={p.id}><mesh geometry={p.geometry} material={matFor(p.kind)} frustumCulled={false} renderOrder={p.kind==='anillo'?1:2}/>{(p.kind==='pluma'||p.kind==='solido')&&<mesh geometry={p.geometry} material={mats[3]} frustumCulled={false} renderOrder={3} scale={1.012}/>}</group>)}
-   <Aura shared={shared} fractions={fractions} quality={quality} reducedMotion={reduced}/>
+   {source==='glb'&&<group position={GLB_OFFSET}>{parts!.map(p=>{
+    if(p.kind==='globo'){const c=p.geometry.userData.center as [number,number,number];
+     return <mesh key={p.id} ref={globe} geometry={p.geometry} position={c} frustumCulled={false} renderOrder={2}><meshBasicMaterial color="#2cc7fa" transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false}/></mesh>;}
+    return <mesh key={p.id} geometry={p.geometry} material={p.kind==='pluma'?mats[4]:p.kind==='solido'?mats[5]:mats[6]} frustumCulled={false} renderOrder={p.kind==='solido'?1:p.kind==='anillo'?2:3}/>;})}</group>}
+   {source==='procedural'&&parts!.map(p=>p.kind==='globo'
+    ?<lineSegments key={p.id} ref={globe as React.Ref<THREE.LineSegments>} geometry={p.geometry} position={[1.4,-0.25,-0.8]} frustumCulled={false}><lineBasicMaterial color="#2cc7fa" transparent opacity={0.24} blending={THREE.AdditiveBlending} depthWrite={false}/></lineSegments>
+    :<group key={p.id}><mesh geometry={p.geometry} material={matFor(p.kind)} frustumCulled={false} renderOrder={p.kind==='anillo'?1:2}/>{(p.kind==='pluma'||p.kind==='solido')&&<mesh geometry={p.geometry} material={mats[3]} frustumCulled={false} renderOrder={3} scale={1.012}/>}</group>)}   <Aura shared={shared} fractions={fractions} quality={quality} reducedMotion={reduced}/>
    <DataTiles counts={decorative0(hasData,fractions)} paused={paused} reduced={reduced} decorative={!hasData}/>
   </group>
   <Pedestal/>

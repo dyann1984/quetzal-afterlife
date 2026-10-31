@@ -34,3 +34,10 @@ Blender ya está operativo. Sigue bloqueado: la imagen de referencia no se puede
 
 ## Avance (modelo creado en Blender)
 `tools/blender/build_quetzal.py` genera `public/models/quetzal.glb` (2,4 MB, ~85k triángulos, partes con nombre: plumas_cresta, plumas_alas, cola, cuerpo, cabeza, anillo, globo; UV y color de vértice por pluma). Renders en `docs/capturas-glb/`. Pendiente: aprobación visual; después, integración en R3F con el sistema de datos. Brechas conocidas frente a la referencia: la cabeza sigue siendo simple, el plumaje es más regular y la silueta es casi plana en profundidad.
+
+## Integración en la web
+- `app/experience/q-glb.ts` carga `/models/quetzal.glb` (GLTFLoader) y lo convierte a las mismas partes y atributos (aU, aT, aPhase, aTone, aLayer) que usa el sistema de datos; `QuetzalQ.tsx` añade el shader del modelo (plumas de cristal aditivas con filo cian, cuerpo/cabeza opacos con borde, anillo aditivo).
+- Se conservan: disolución por registros perdidos, tinte dorado de los recuperados con daño, materialización desde la cabeza, aura de partículas (muestreada sobre el GLB), bloques de datos, giro interactivo y movimiento suave.
+- El póster (logo) se mantiene hasta que el GLB está cargado. Si el GLB no carga, se usa la geometría procedural anterior como respaldo.
+- Medidas (Chrome del panel, GPU del equipo): hero ~89k triángulos y 13 llamadas de dibujo; ~30 fps en calidad alta y en móvil 375 px (calidad baja). GLB: 2,4 MB.
+- Brechas frente a la referencia: cabeza más simple que la de la imagen, plumaje más regular, figura poco profunda (a 60° se ve como lámina), sin cristal translúcido con refracción real (en la web es aditivo).

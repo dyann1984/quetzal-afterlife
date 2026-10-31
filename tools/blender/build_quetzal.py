@@ -76,7 +76,7 @@ def feather(pts, width, cup=0.35, droop=0.25, curl=0.0, tone=0.0, phase=0.0, ser
                 continue
             for lp, (vv, u, t) in zip(f.loops, (rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j])):
                 lp[uv].uv = (u * 0.5 + 0.5, t)
-                lp[col] = (tone * max(0.0, (t - 0.86) / 0.14), phase, t, 1.0)
+                lp[col] = (tone * max(0.0, (t - 0.86) / 0.14), phase * 0.8, t, 1.0)
     bm.normal_update()
     ob = new_obj('f', bm, MAT_FEATHER)
     sol = ob.modifiers.new('s', 'SOLIDIFY'); sol.thickness = thick; sol.offset = 0
@@ -100,7 +100,7 @@ def tube(path, radii, segs=14, mat=None, tone=0.0, name='tube'):
         for k in range(segs):
             f = bm.faces.new((rings[i][k], rings[i][(k + 1) % segs], rings[i + 1][(k + 1) % segs], rings[i + 1][k]))
             for lp in f.loops:
-                lp[col] = (tone, 0.0, i / (n - 1), 1.0)
+                lp[col] = (tone, 0.0, i / (n - 1), 1.0); lp[uv].uv = (-1.0, i / (n - 1))
     bm.normal_update()
     return new_obj(name, bm, mat)
 
@@ -274,9 +274,9 @@ def sphere_obj(name, r, loc, scl, mat, seg=32, rings=20):
     for v in bm.verts:
         v.co.x *= scl[0]; v.co.y *= scl[1]; v.co.z *= scl[2]
         v.co += Vector(loc)
-    col = color_layer(bm)
+    col = color_layer(bm); uvl = bm.loops.layers.uv.new('UVMap'); eyeflag = 1.0 if name.startswith('ojo') else 0.0
     for f in bm.faces:
-        for lp in f.loops: lp[col] = (0, 0, 0.3, 1)
+        for lp in f.loops: lp[col] = (0, eyeflag, 0.3, 1); lp[uvl].uv = (-1.0, 0.0)
     return new_obj(name, bm, mat)
 
 skull = sphere_obj('craneo', 0.5, (0.08, 1.95, 0.0), (1.25, 0.88, 0.9), MAT_BODY)
@@ -301,7 +301,7 @@ for v in parts['cabeza'].data.vertices:
 
 # ---------------------------------------------------------------- anillo holografico + globo
 def ring_arc(a0, a1, r, width, thick, cx, cy, name, mat=MAT_RING, n=120, z=0.0):
-    bm = bmesh.new(); col = color_layer(bm)
+    bm = bmesh.new(); col = color_layer(bm); uvl = bm.loops.layers.uv.new('UVMap')
     rows = []
     for i in range(n):
         a = math.radians(a0 + (a1 - a0) * i / (n - 1))
@@ -312,7 +312,7 @@ def ring_arc(a0, a1, r, width, thick, cx, cy, name, mat=MAT_RING, n=120, z=0.0):
     for i in range(n - 1):
         for k in range(4):
             f = bm.faces.new((rows[i][k], rows[i][(k + 1) % 4], rows[i + 1][(k + 1) % 4], rows[i + 1][k]))
-            for lp in f.loops: lp[col] = (0, 0, i / n, 1)
+            for lp in f.loops: lp[col] = (0, 0, i / n, 1); lp[uvl].uv = (-1.0, i / n)
     bm.normal_update()
     return new_obj(name, bm, mat)
 
@@ -327,7 +327,9 @@ for k in range(46):  # marcas
         v.co.x *= 0.20; v.co.y *= 0.02; v.co.z *= 0.03
     bmesh.ops.rotate(bm, verts=bm.verts, cent=(0, 0, 0), matrix=__import__('mathutils').Matrix.Rotation(a, 3, 'Z'))
     bmesh.ops.translate(bm, verts=bm.verts, vec=(CX + math.cos(a) * 2.78, CY + math.sin(a) * 2.78, -0.15))
-    col = color_layer(bm)
+    col = color_layer(bm); uvl = bm.loops.layers.uv.new('UVMap')
+    for f in bm.faces:
+        for lp in f.loops: lp[uvl].uv = (-1.0, 0.0)
     ring.append(new_obj('t', bm, MAT_RING))
 parts['anillo'] = join(ring, 'anillo')
 
@@ -381,7 +383,7 @@ def export_glb():
     bpy.ops.object.select_all(action='DESELECT')
     for ob in parts.values(): ob.select_set(True)
     bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'quetzal.glb'), export_format='GLB', use_selection=True,
-                              export_apply=True, export_yup=True, export_texcoords=True, export_normals=True,
+                              export_apply=True, export_yup=False, export_texcoords=True, export_normals=True,
                               export_vertex_color='ACTIVE' if 'export_vertex_color' in bpy.ops.export_scene.gltf.get_rna_type().properties else 'MATERIAL',
                               export_materials='EXPORT', export_cameras=False, export_lights=False)
     print('GLB', os.path.getsize(os.path.join(OUT, 'quetzal.glb')))

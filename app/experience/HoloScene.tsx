@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 /**
  * Escena WebGL (React Three Fiber). Solo VISUALIZA el SceneModel; no importa el motor.
  * Se carga de forma diferida (dynamic import) para no penalizar la carga inicial.
@@ -167,7 +167,7 @@ export default function HoloScene(p:HoloProps){
    style={{width:'100%',height:'100%',touchAction:'none'}} aria-hidden="true">
   <Rig stage={stage} paused={p.paused} autoRotate={p.autoRotate} explore={p.explore} reducedMotion={p.reducedMotion}/>
   {stage==='materializar'
-   ?<group position={[-0.62,0.7,0]} scale={1.22}><QuetzalQ shared={shared} fractions={fractions} quality={quality} paused={p.paused} reduced={p.reducedMotion} runId={p.runId} hasData={hasData}/></group>
+   ?<group position={[-0.62,0.5,0]} scale={1.08}><QuetzalQ shared={shared} fractions={fractions} quality={quality} paused={p.paused} reduced={p.reducedMotion} runId={p.runId} hasData={hasData}/></group>
    :<group position={[-0.3,0.2,-2.4] as Vec3} scale={0.45}><Aura shared={shared} fractions={fractions} quality={quality} opacity={0.28} reducedMotion={p.reducedMotion} forceComplete/></group>}
   {stage==='discovery'&&<Files scene={scene}/>}
   {stage==='recovery'&&<Columns scene={scene}/>}
