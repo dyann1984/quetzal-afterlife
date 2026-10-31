@@ -63,6 +63,7 @@ export interface ProjectStore {
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'quetzal_projects';
+export const BACKUP_KEY = 'quetzal_projects_corrupt_backup';
 const MAX_STORE_BYTES = 5 * 1024 * 1024; // 5 MB
 export const STORE_VERSION = 1 as const;
 
@@ -164,7 +165,11 @@ export const ProjectStorage = {
       if (!raw) return emptyStore();
       return deserializeStore(raw);
     } catch {
-      // Store corrupto — devolvemos vacío sin borrar (el usuario puede decidir)
+      // Store corrupto — se conserva una copia de respaldo antes de que un guardado lo sobrescriba.
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw && !localStorage.getItem(BACKUP_KEY)) localStorage.setItem(BACKUP_KEY, raw);
+      } catch { /* sin espacio o sin acceso: se devuelve vacío igualmente */ }
       return emptyStore();
     }
   },

@@ -78,3 +78,12 @@ ibm437/ibm850/ibm852: FAIL. windows-125x: OK. Resuelto con tablas manuales.
   3. Verificar sección Laboratorio con reconstrucción de inventario
 
 - **Fixtures FoxPro/VFP**: no se dispone de archivos `.dbf` reales de FoxPro/VFP para verificar compatibilidad. Los dialectos 0x05/0xF5/0x30 están en la lista blanca pero sin verificación de fixtures reales.
+
+
+## Fase 4 — Estabilización (2026-10-31, rama feat/fase-4-estabilizacion)
+
+Ejecutado: 119/119 pruebas (7 archivos), tsc 0 errores, ESLint 0 errores / 2 warnings (`<img>` del logo), build OK.
+Navegador (build de producción, puerto 4173): importación DBF sintética, botón demo, exportación CSV/JSON,
+guardar/reabrir/eliminar, recuperación de almacén corrupto (respaldo), sin desbordamiento horizontal a 375, 768 y desktop.
+No verificado: archivos DBF reales de sistemas heredados (no hay ninguno en el equipo), navegadores distintos al integrado,
+descarga física de archivos (se inspeccionó el contenido del Blob, no el diálogo de descarga del sistema).
