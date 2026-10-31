@@ -8,7 +8,7 @@ import {Canvas,useFrame,useThree} from '@react-three/fiber';
 import {OrbitControls} from '@react-three/drei';
 import * as THREE from 'three';
 import type {Quality,SceneModel,Stage,Vec3} from '../../lib/experience';
-import {AURA_COUNT,Aura,Bird,DataRing,DataTiles,Pedestal,Studio3D,makeShared} from './QuetzalBird';
+import {AURA_COUNT,Aura,QuetzalQ,makeShared} from './QuetzalQ';
 
 const BLUE=new THREE.Color('#2cc7fa'),GOLD=new THREE.Color('#d3b273'),RED=new THREE.Color('#ff7a7a'),DIM=new THREE.Color('#3b566a');
 
@@ -150,7 +150,9 @@ function Rig({stage,paused,autoRotate,explore,reducedMotion}:{stage:Stage;paused
   const dist=Math.hypot(camera.position.x,camera.position.z),want=stage==='materializar'?11:7.5;
   if(dist>0.01){const f=1+((want-dist)*k)/dist;camera.position.x*=f;camera.position.z*=f;}
  });
- return <OrbitControls makeDefault enableDamping dampingFactor={0.08} autoRotate={autoRotate&&!paused&&!reducedMotion} autoRotateSpeed={0.9} enablePan={explore} enableZoom={explore} minDistance={4} maxDistance={16} maxPolarAngle={Math.PI*0.62}/>;
+ return <OrbitControls makeDefault enableDamping dampingFactor={0.08} autoRotate={autoRotate&&!paused&&!reducedMotion&&stage!=='materializar'} autoRotateSpeed={0.9} enablePan={explore} enableZoom={explore} minDistance={4} maxDistance={16}
+  minAzimuthAngle={stage==='materializar'?-1.1:-Infinity} maxAzimuthAngle={stage==='materializar'?1.1:Infinity}
+  minPolarAngle={stage==='materializar'?Math.PI*0.42:0} maxPolarAngle={stage==='materializar'?Math.PI*0.58:Math.PI*0.62}/>;
 }
 
 export default function HoloScene(p:HoloProps){
@@ -164,15 +166,9 @@ export default function HoloScene(p:HoloProps){
    onCreated={({gl})=>{gl.setClearColor(0x000000,0);}}
    style={{width:'100%',height:'100%',touchAction:'none'}} aria-hidden="true">
   <Rig stage={stage} paused={p.paused} autoRotate={p.autoRotate} explore={p.explore} reducedMotion={p.reducedMotion}/>
-  <Studio3D/>
   {stage==='materializar'
-   ?<group position={[0,2.1,0]} scale={0.88}>
-     <Bird shared={shared} fractions={fractions} paused={p.paused} reduced={p.reducedMotion} runId={p.runId}/>
-     <Aura shared={shared} fractions={fractions} quality={quality} reducedMotion={p.reducedMotion}/>
-     <Pedestal/><DataRing paused={p.paused} reduced={p.reducedMotion}/>
-     {hasData&&<DataTiles counts={fractions} paused={p.paused} reduced={p.reducedMotion}/>}
-    </group>
-   :<group position={[0,0.8,-2.4] as Vec3} scale={0.42}><Aura shared={shared} fractions={fractions} quality={quality} opacity={0.28} reducedMotion={p.reducedMotion} forceComplete/></group>}
+   ?<group position={[-0.62,0.7,0]} scale={1.22}><QuetzalQ shared={shared} fractions={fractions} quality={quality} paused={p.paused} reduced={p.reducedMotion} runId={p.runId} hasData={hasData}/></group>
+   :<group position={[-0.3,0.2,-2.4] as Vec3} scale={0.45}><Aura shared={shared} fractions={fractions} quality={quality} opacity={0.28} reducedMotion={p.reducedMotion} forceComplete/></group>}
   {stage==='discovery'&&<Files scene={scene}/>}
   {stage==='recovery'&&<Columns scene={scene}/>}
   {stage==='reconstruction'&&<Network scene={scene}/>}
@@ -182,3 +178,5 @@ export default function HoloScene(p:HoloProps){
   <PerfProbe quality={quality} stage={stage} onFps={p.onFps}/>
  </Canvas>;
 }
+
+

@@ -3,7 +3,7 @@
 import {useEffect,useMemo} from 'react';
 import {Canvas,useThree} from '@react-three/fiber';
 import {OrbitControls} from '@react-three/drei';
-import {Aura,Bird,DataRing,DataTiles,Pedestal,Studio3D,makeShared,type Fractions} from './QuetzalBird';
+import {QuetzalQ,makeShared,type Fractions} from './QuetzalQ';
 import type {Quality} from '../../lib/experience';
 
 export interface PerfSample{fps:number;frames:number}
@@ -15,12 +15,12 @@ function setSpherical(camera:{position:{set:(x:number,y:number,z:number)=>void};
  camera.position.set(target[0]+dist*Math.sin(p)*Math.sin(a),target[1]+dist*Math.cos(p),target[2]+dist*Math.sin(p)*Math.cos(a));
  camera.lookAt(target[0],target[1],target[2]);
 }
-const TARGET:[number,number,number]=[0,-2.1,0];
+const TARGET:[number,number,number]=[0.5,-0.55,0];
 
 function ViewHook(){
  const get=useThree(s=>s.get);
  useEffect(()=>{
-  window.__quetzalSetView=(az,pol,dist=14)=>{const st=get();setSpherical(st.camera,TARGET,az,pol,dist);(st.controls as unknown as {update?:()=>void}|null)?.update?.();st.invalidate();};
+  window.__quetzalSetView=(az,pol,dist=14.5)=>{window.__quetzalHold=true;const st=get();setSpherical(st.camera,TARGET,az,pol,dist);(st.controls as unknown as {update?:()=>void}|null)?.update?.();st.invalidate();};
   return()=>{delete window.__quetzalSetView;};
  },[get]);
  return null;
@@ -56,21 +56,17 @@ function ContextGuard({onLost}:{onLost:()=>void}){
 export default function HeroCanvas({fractions,hasData,quality,active,reduced,interactive,onFirstFrame,onLost}:{fractions:Fractions;hasData:boolean;quality:Quality;active:boolean;reduced:boolean;interactive:boolean;onFirstFrame:()=>void;onLost:()=>void}){
  const shared=useMemo(()=>makeShared(),[]);
  const dprMax=quality==='alta'?1.75:quality==='media'?1.4:1;
- return <Canvas dpr={[1,dprMax]} camera={{position:[2.4,-0.4,15.5],fov:36}} frameloop={active?'always':'demand'}
+ return <Canvas dpr={[1,dprMax]} camera={{position:[0.5,-0.4,14.5],fov:36}} frameloop={active?'always':'demand'}
    gl={{antialias:quality!=='baja',powerPreference:'high-performance',alpha:true}}
    onCreated={({gl,camera})=>{gl.setClearColor(0x000000,0);camera.lookAt(TARGET[0],TARGET[1],TARGET[2]);onFirstFrame();}}
    style={{width:'100%',height:'100%',touchAction:interactive?'none':'pan-y'}} aria-hidden="true">
-  <Studio3D/>
-  <group position={[0,0,0]}>
-   <Bird shared={shared} fractions={fractions} paused={!active} reduced={reduced} runId={0}/>
-   <Aura shared={shared} fractions={fractions} quality={quality} reducedMotion={reduced}/>
-   <Pedestal/><DataRing paused={!active} reduced={reduced}/>
-   {hasData&&<DataTiles counts={fractions} paused={!active} reduced={reduced}/>}
-  </group>
+  <QuetzalQ shared={shared} fractions={fractions} quality={quality} paused={!active} reduced={reduced} runId={0} hasData={hasData}/>
   {interactive&&<OrbitControls makeDefault target={TARGET} enableDamping dampingFactor={0.08} enableZoom={false} enablePan={false}
-    minPolarAngle={Math.PI*0.36} maxPolarAngle={Math.PI*0.62} autoRotate={active&&!reduced} autoRotateSpeed={0.55}/>}
+    minAzimuthAngle={-0.9} maxAzimuthAngle={0.9} minPolarAngle={Math.PI*0.44} maxPolarAngle={Math.PI*0.56}/>}
   <ViewHook/><ContextGuard onLost={onLost}/><Probe quality={quality} active={active}/>
  </Canvas>;
 }
+
+
 
 
