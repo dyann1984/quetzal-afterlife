@@ -93,3 +93,11 @@ descarga física de archivos (se inspeccionó el contenido del Blob, no el diál
 
 Ver docs/motor-2.0.md. Resultados al cierre: ver el reporte de la sesión; 163+ pruebas, tsc, ESLint y build ejecutados.
 Fixtures y daños 100 % sintéticos: no demuestran recuperación de archivos reales.
+
+
+## Recuperación universal — fase 1 (rama feat/universal-recovery)
+
+Ejecutado: 242/242 pruebas (18 archivos; +55 sobre las 187 anteriores), tsc 0 errores, ESLint 0 errores / 3 warnings (`<img>` del logotipo), build OK.
+Nuevas: núcleo/inflate (10), analizadores + seguridad + carving (32), archivos reales (5), matriz de capacidades (8).
+Navegador (build de producción): sección File Recovery con 12 informes sintéticos + carving; logotipo real del proyecto (íntegro y truncado, reparado y verificado); «PNG» que es un ejecutable → marcado peligroso, no analizado; archivo de 9 MiB rechazado antes de leerlo; archivo vacío rechazado; móvil 375 px sin desbordamiento; regresión de las 12 secciones previas, holograma del Dashboard y experiencia de 6 etapas sin errores JS.
+No verificado: PDF, DOCX, XLSX, ZIP y DBF reales (no hay ninguno en el equipo; solo sintéticos); JPEG real solo estructural; sin decodificación de píxeles; sin sistemas de archivos; sin audio/video/ejecutables más allá de la firma.
