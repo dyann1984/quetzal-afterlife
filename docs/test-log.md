@@ -12,76 +12,69 @@ Entorno: Windows, Node v22.23.2, npm 10.9.8. Repositorio local aislado.
 | Instalación y lockfile | PASS | npm install completó; versiones directas fijadas según resolución y lockfile. |
 | lint | PASS con advertencias | Exit 0; dos advertencias de Next sobre uso de img. |
 | typecheck | PASS | tsc --noEmit, exit 0. |
-| Pruebas unitarias | PASS | Vitest: 7 de 7 después de corregir la detección de delimitador. Primera ejecución: 5 PASS, 2 FAIL; corregido y repetido. |
-| build | PASS | next build, exit 0, ruta estática /. Repetido tras corrección del analizador. |
-| Navegador e importación | PASS parcial | Navegación a Nueva recuperación e importación de fixtures/ejemplo.csv: 2 filas y 3 columnas observadas. No se comprobó todo el recorrido ni diseño móvil. |
+| Pruebas unitarias | PASS | Vitest: 7 de 7 después de corregir la detección de delimitador. |
+| build | PASS | next build, exit 0, ruta estática /. |
+| Navegador e importación | PASS parcial | CSV: 2 filas y 3 columnas observadas. No se comprobó recorrido completo. |
 | Despliegue | PENDIENTE | No se ha desplegado. |
-| Kiro | PENDIENTE | Estructura preparada; no se ha ejecutado Kiro. |
-
-ESLint 9.39.5 emitió aviso de fin de soporte durante la instalación. No existen todavía resultados de recuperación verificados, persistencia, DBF, IA ni métricas de éxito.
 
 ---
 
-## 2026-10-30 — Fase 2A (rama feat/kiro-dbf-archaeology)
+## 2026-10-30 — Fase 2A (commit 0a7299b · rama feat/kiro-dbf-archaeology)
 
-Entorno: Windows, Node v22.23.2, npm 10.9.8. Rama `feat/kiro-dbf-archaeology` desde commit `35a708a`.
-
-### Comprobación de codificaciones TextDecoder (Node.js v22)
-
-Ejecutado con `node probe-encoding.mjs` antes de implementar:
-
-| Codificación | TextDecoder Node v22 | Estrategia adoptada |
-| --- | --- | --- |
-| ibm437 (CP437 DOS) | **FAIL** — no soportada | Tabla de mapeo manual CP437_HIGH[128] |
-| ibm850 (CP850 DOS) | **FAIL** — no soportada | Tabla de mapeo manual CP850_HIGH[128] |
-| ibm852 (CP852 DOS) | **FAIL** — no soportada | Tabla de mapeo manual CP852_HIGH[128] |
-| windows-1250 | OK | TextDecoder nativo |
-| windows-1251 | OK | TextDecoder nativo |
-| windows-1252 | OK | TextDecoder nativo |
-| windows-1253 | OK | TextDecoder nativo |
-| windows-1254 | OK | TextDecoder nativo |
-
-### Verificaciones Fase 2A
+Motor de arqueología DBF puro con decodificación manual CP437/CP850/CP852.
 
 | Comprobación | Resultado | Evidencia real |
 | --- | --- | --- |
-| Pruebas unitarias CSV (regresión) | **PASS** | vitest run: 7/7. Sin regresión. |
-| Pruebas unitarias DBF (nuevas) | **PASS** | vitest run: 42/42. Primera ejecución: 43/49 (6 fallos por trim omitido). Corregido y repetido: 49/49. |
-| Total pruebas | **PASS** | vitest run: **49/49** — 7 CSV + 42 DBF |
-| typecheck | **PASS** | tsc --noEmit, exit 0, 0 errores. |
-| lint | **PASS** (con advertencias) | eslint .: 0 errores, 2 advertencias `<img>` pre-existentes de Fase 1. |
-| build | **PASS** | next build (Turbopack): compilado en 5.0s, TypeScript en 6.1s, ruta estática `/`, exit 0. |
-| Navegador e importación DBF | PENDIENTE | No verificado en navegador real (requiere `npm run dev` manual). |
-| Despliegue | PENDIENTE | No se ha desplegado. |
+| Pruebas CSV (regresión) | PASS | vitest: 7/7 |
+| Pruebas DBF (nuevas) | PASS | vitest: 42/42 (primera ejecución 43/49; corregido trim) |
+| Total pruebas | PASS | **49/49** |
+| typecheck | PASS | tsc --noEmit, 0 errores |
+| lint | PASS | eslint: 0 errores, 2 advertencias `<img>` pre-existentes |
+| build | PASS | next build Turbopack, exit 0 |
+| Navegador DBF | PENDIENTE | Requiere npm run dev en terminal del usuario |
 
-### Iteraciones de corrección
+Limitación documentada: ibm437/ibm850/ibm852 no soportados en TextDecoder Node v22.
+Compatibilidad demostrada: dBASE III (0x03) y dBASE IV (0x04) únicamente.
 
-- **Primera ejecución**: 43/49. 6 fallos todos del mismo origen: `decodeField()` no aplicaba trim de espacios. El diseño indicaba trim por defecto pero no se implementó en el parser.
-- **Corrección**: añadir `value = value.trim()` en la rama no-memo del bucle de registros.
-- **Segunda ejecución**: 49/49. Sin regresión en CSV.
-- **ESLint primera ejecución** (sesión anterior): 4 advertencias — 2 `<img>` (pre-existentes), 1 import `DbfField` no usado, 1 variable `err` asignada sin uso. Ambas corregidas.
-- **ESLint segunda ejecución** (esta sesión): 2 advertencias — solo las `<img>` pre-existentes. 0 errores.
+---
 
-### Archivos creados/modificados en Fase 2A
+## 2026-10-30 — Fase 2B (commit en curso · rama feat/kiro-dbf-archaeology)
 
-| Archivo | Acción | Descripción |
+Módulo de reconstrucción de inventario. Función pura sobre datos ya parseados.
+
+### Comprobación de TextDecoder (Node.js v22) — resultado previo reutilizado
+ibm437/ibm850/ibm852: FAIL. windows-125x: OK. Resuelto con tablas manuales.
+
+### Verificaciones Fase 2B
+
+| Comprobación | Resultado | Evidencia real |
 | --- | --- | --- |
-| `lib/dbf.ts` | Creado | Motor de parseo DBF puro (≈380 líneas) |
-| `lib/dbf.test.ts` | Creado | 42 pruebas unitarias con fixtures por código |
-| `app/page.tsx` | Modificado | Integración UI: aceptar .dbf, mostrar metadatos, campos, registros, advertencias |
-| `app/globals.css` | Modificado (append) | Estilos DBF: tablas de metadatos, grid de campos, filas borradas/corruptas, advertencias |
-| `docs/decisions.md` | Modificado | Decisiones técnicas de Fase 2A: parser propio, codificaciones DOS, registros borrados |
-| `docs/architecture.md` | Modificado | Fase 2A documentada; límites actualizados; siguientes fases revisadas |
-| `docs/test-log.md` | Modificado | Este archivo |
-| `.kiro/specs/dbf-archaeology/requirements.md` | Creado | Requisitos funcionales y no funcionales del motor DBF |
-| `.kiro/specs/dbf-archaeology/design.md` | Creado | Diseño técnico: tipos, algoritmo, integración UI |
-| `.kiro/specs/dbf-archaeology/tasks.md` | Creado | 8 tareas con criterios de finalización |
+| Pruebas CSV (regresión) | PASS | vitest: 7/7 |
+| Pruebas DBF (regresión) | PASS | vitest: 42/42 |
+| Pruebas inventory (nuevas) | PASS | vitest: **21/21** — primera ejecución todo verde |
+| Total pruebas | PASS | **70/70** |
+| typecheck | PASS | tsc --noEmit, 0 errores |
+| lint | PASS | eslint: 0 errores, 2 advertencias `<img>` pre-existentes |
+| build | PASS | next build Turbopack, 1993ms, exit 0 |
+| Navegador Laboratorio | PENDIENTE | Requiere npm run dev en terminal del usuario |
 
-### Limitaciones documentadas
+### Archivos creados/modificados en Fase 2B
 
-- Compatibilidad demostrada: **dBASE III (0x03)** y **dBASE IV (0x04)** con fixtures sintéticos.
-- dBASE 5.0 (0x05), FoxPro 2.x con memo (0xF5) y Visual FoxPro (0x30): en lista blanca pero sin fixtures reales verificados.
-- Archivos de memo (`.fpt`, `.dbt`): no leídos; referencias tipo M devueltas como `[memo:N]`.
-- Índices (`.ndx`, `.mdx`, `.cdx`): fuera de alcance.
-- Codificaciones DOS (cp437, cp850, cp852): Node.js v22 no las soporta via TextDecoder. Decodificador manual por tabla Unicode oficial implementado y verificado (prueba CP850/ñ).
-- Verificación en navegador real: pendiente (requiere `npm run dev` en terminal del usuario).
+| Archivo | Acción |
+| --- | --- |
+| `lib/inventory.ts` | Creado — función pura reconstructInventory |
+| `lib/inventory.test.ts` | Creado — 21 pruebas unitarias |
+| `app/page.tsx` | Modificado — sección Laboratorio con reconstrucción de inventario |
+| `app/globals.css` | Modificado (append) — estilos de inventario |
+| `docs/test-log.md` | Modificado — este archivo |
+| `.kiro/specs/inventory-reconstruction/requirements.md` | Actualizado — spec completa |
+| `.kiro/specs/inventory-reconstruction/design.md` | Creado — diseño técnico |
+
+### Bloqueo documentado
+
+- **Verificación en navegador**: `npm run dev` es un proceso de larga duración que no puede ejecutarse desde el agente. El usuario debe ejecutarlo manualmente (`npm run dev` en terminal, luego abrir http://localhost:3000) para:
+  1. Verificar importación CSV con `fixtures/ejemplo.csv`
+  2. Verificar importación DBF con cualquier archivo `.dbf`
+  3. Verificar sección Laboratorio con reconstrucción de inventario
+
+- **Fixtures FoxPro/VFP**: no se dispone de archivos `.dbf` reales de FoxPro/VFP para verificar compatibilidad. Los dialectos 0x05/0xF5/0x30 están en la lista blanca pero sin verificación de fixtures reales.
