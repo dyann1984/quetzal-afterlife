@@ -8,6 +8,7 @@ import {
   ProjectStorage,upsertProject,deleteProject,createProject,addEvidence,addVerification,
   type Project,type ProjectStore,
 } from '../lib/project';
+import {exportInventoryCsv,exportInventoryJson,exportVerificationCsv,exportVerificationJson,inferredFields} from '../lib/export';
 import {DEMO_CSV_A,DEMO_CSV_B,DEMO_INV_A,DEMO_INV_B,DEMO_VERIFICATION} from '../lib/demo';
 
 const sections=['Dashboard','Nueva recuperación','Laboratorio','Verificación','Archivo'] as const;
@@ -41,6 +42,7 @@ export default function Home(){
  // Proyecto activo
  const [projectName,setProjectName]=useState('');
  const [savedMsg,setSavedMsg]=useState('');
+ const [isDemo,setIsDemo]=useState(false);
  // Store
  const [store,setStore]=useState<ProjectStore>({version:1,projects:[]});
  const [openProject,setOpenProject]=useState<Project|null>(null);
@@ -53,7 +55,7 @@ export default function Home(){
  const upload=useCallback(async(e:React.ChangeEvent<HTMLInputElement>)=>{
   const f=e.target.files?.[0];if(!f)return;
   setCsvResult(null);setDbfResult(null);setInvResult(null);setVerResult(null);
-  setRefCsvResult(null);setRefInvResult(null);setRefFilename('');
+  setRefCsvResult(null);setRefInvResult(null);setRefFilename('');setIsDemo(false);
   setError('');setFilename('');setFileType(null);
   try{
    const bytes=new Uint8Array(await f.arrayBuffer());
@@ -115,7 +117,7 @@ export default function Home(){
   if(!invResult&&!verResult){setSavedMsg('⚠ No hay datos para guardar.');return;}
   try{
    const name=projectName.trim()||filename||'Proyecto sin nombre';
-   let p=createProject(name);
+   let p=createProject(name,isDemo);
    if(filename&&invResult){
     p=addEvidence(p,{filename,type:fileType??'csv',importedAt:new Date().toISOString(),
      csvResult:csvResult??undefined,dbfResult:dbfResult??undefined,inventoryResult:invResult});
@@ -141,8 +143,28 @@ export default function Home(){
   setCsvResult(DEMO_CSV_A);setFilename('sistema-A-demo.csv');setFileType('csv');
   setInvResult(DEMO_INV_A);setRefCsvResult(DEMO_CSV_B);setRefFilename('sistema-B-demo.csv');
   setRefInvResult(DEMO_INV_B);setVerResult(DEMO_VERIFICATION);
-  setError('');setRefError('');setProjectName('Demo Kiroween 2026');
+  setError('');setRefError('');setProjectName('Demo Kiroween 2026');setIsDemo(true);
   setSection('Laboratorio');
+ }
+
+ // ── Exportación (descarga local, sin red) ─────────────────────────────────
+ function download(name:string,text:string,mime:string){
+  const url=URL.createObjectURL(new Blob([text],{type:mime}));
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }
+ function exportInv(fmt:'json'|'csv'){
+  if(!invResult)return;
+  const ctx={filename,synthetic:isDemo,generatedAt:new Date().toISOString()};
+  const base=(filename||'inventario').replace(/\.[^.]+$/,'')+'-reconstruccion';
+  if(fmt==='json')download(base+'.json',exportInventoryJson(invResult,ctx),'application/json');
+  else download(base+'.csv',exportInventoryCsv(invResult,ctx),'text/csv;charset=utf-8');
+ }
+ function exportVer(fmt:'json'|'csv'){
+  if(!verResult)return;
+  const ctx={filename,synthetic:isDemo,generatedAt:new Date().toISOString()};
+  if(fmt==='json')download('verificacion.json',exportVerificationJson(verResult,ctx),'application/json');
+  else download('verificacion.csv',exportVerificationCsv(verResult,ctx),'text/csv;charset=utf-8');
  }
 
  // ── Abrir proyecto guardado ───────────────────────────────────────────────
@@ -156,7 +178,7 @@ export default function Home(){
   setInvResult(main?.inventoryResult??null);setFilename(main?.filename??'');setFileType(main?.type??null);
   setRefCsvResult(ref?.csvResult??null);setRefInvResult(ref?.inventoryResult??null);setRefFilename(ref?.filename??'');
   setVerResult(p.verifications.length?p.verifications[p.verifications.length-1].result:null);
-  setError('');setRefError('');setProjectName(p.name);setSection('Laboratorio');
+  setError('');setRefError('');setProjectName(p.name);setIsDemo(p.isDemo);setSection('Laboratorio');
  }
  function deleteProjectById(id:string){
   const ns=deleteProject(store,id);
@@ -259,6 +281,7 @@ export default function Home(){
     <h1>Laboratorio<span className="gold">.</span></h1>
     {!invResult&&<><p>Importa un archivo en <em>Nueva recuperación</em> o carga el <button className="link-btn" onClick={loadDemo}>modo demo</button>.</p><button className="secondary" onClick={()=>setSection('Nueva recuperación')}>Ir a importación →</button></>}
     {invResult&&<>
+     {isDemo&&<p className="demo-banner" role="note"><span className="demo-badge">SINTÉTICO</span> Datos de demostración generados para este prototipo. No representan ningún sistema ni empresa real.</p>}
      {filename&&<p style={{color:'#687784',fontSize:'12px',marginBottom:'20px'}}>Fuente: <span style={{color:'#c8d4dc'}}>{filename}</span></p>}
      {!invResult.operacionDetectada&&<div className="inv-no-op"><span className="kicker">SIN OPERACIÓN DE INVENTARIO DETECTADA</span><p>{invResult.warnings[0]}</p></div>}
      {invResult.operacionDetectada&&<>
@@ -269,6 +292,8 @@ export default function Home(){
         <span className={`inv-field-conf inv-conf-${m.confidence}`}>{CONF[m.confidence]}</span>
        </div>)}
       </div>
+      {inferredFields(invResult).length>0&&<p className="inv-warn-line" style={{marginTop:'12px'}}>⚠ Estimación, no hecho confirmado: el rol de {inferredFields(invResult).join('; ')} fue inferido por heurística con confianza no alta.</p>}
+      <p style={{color:'#687784',fontSize:'11px',marginTop:'12px'}}>La asignación de campos es una detección heurística; las cantidades son las del archivo, sin imputar. «Fila» indica la posición en el archivo de origen.</p>
       <div className="inv-totals" style={{marginTop:'24px'}}>
        <div className="inv-total-card inv-total-active">
         <span className="inv-total-label">Total recuperado (activos)</span>
@@ -287,7 +312,7 @@ export default function Home(){
        </div>}
       </div>
       <div className="tablewrap" style={{marginTop:'20px'}}><table>
-       <thead><tr><th>#</th><th>ID</th>{invResult.fieldMatches.find(m=>m.role==='nombre')&&<th>Nombre</th>}<th>Cantidad</th><th>Fuente</th></tr></thead>
+       <thead><tr><th>Fila</th><th>ID</th>{invResult.fieldMatches.find(m=>m.role==='nombre')&&<th>Nombre</th>}<th>Cantidad</th><th>Fuente</th></tr></thead>
        <tbody>{invResult.items.slice(0,20).map((item,i)=>(
         <tr key={i} className={item.source==='recuperado_borrado'?'dbf-row-deleted':item.source==='desconocido'?'inv-row-unknown':''}>
          <td style={{color:'#687784',fontSize:'10px'}}>{item.rowIndex+1}</td>
@@ -299,6 +324,11 @@ export default function Home(){
        ))}</tbody>
       </table></div>
       {invResult.warnings.length>0&&<div className="inv-warnings">{invResult.warnings.map((w,i)=><p key={i} className="inv-warn-line">⚠ {w}</p>)}</div>}
+      {invResult.items.length>20&&<p style={{color:'#687784',fontSize:'11px',marginTop:'8px'}}>Mostrando 20 de {invResult.items.length} registros. La exportación incluye todos.</p>}
+      <div style={{display:'flex',gap:'10px',marginTop:'16px',flexWrap:'wrap'}}>
+       <button className="secondary" style={{marginTop:0}} onClick={()=>exportInv('csv')}>Exportar CSV</button>
+       <button className="secondary" style={{marginTop:0}} onClick={()=>exportInv('json')}>Exportar JSON</button>
+      </div>
       <p className="inv-hint" style={{marginTop:'20px'}}>Para verificar contra una referencia → <button className="link-btn" onClick={()=>setSection('Verificación')}>ir a Verificación →</button></p>
      </>}
     </>}
@@ -313,6 +343,7 @@ export default function Home(){
     <button className="secondary" onClick={()=>setSection('Nueva recuperación')}>Ir a importación →</button></>}
 
     {invResult&&<>
+     {isDemo&&<p className="demo-banner" role="note"><span className="demo-badge">SINTÉTICO</span> Datos de demostración generados para este prototipo. No representan ningún sistema ni empresa real.</p>}
      <p style={{color:'#94a0ac',fontSize:'13px',maxWidth:'600px',lineHeight:'1.7'}}>
       Carga una fuente de referencia independiente para contrastar el inventario reconstruido de <strong style={{color:'#c8d4dc'}}>{filename}</strong>.
       Los resultados muestran coincidencias, discrepancias y registros ausentes en cada fuente.
@@ -381,6 +412,10 @@ export default function Home(){
        Ejecutada: {verResult.ejecutadaEn} · Fuentes: {verResult.fuentePrincipal} vs {verResult.fuenteReferencia}
       </p>
 
+      <div style={{display:'flex',gap:'10px',marginTop:'12px',flexWrap:'wrap'}}>
+       <button className="secondary" style={{marginTop:0}} onClick={()=>exportVer('csv')}>Exportar CSV</button>
+       <button className="secondary" style={{marginTop:0}} onClick={()=>exportVer('json')}>Exportar JSON</button>
+      </div>
       {/* Cambiar referencia */}
       <button className="secondary" style={{marginTop:'12px'}} onClick={()=>{setVerResult(null);setRefCsvResult(null);setRefInvResult(null);setRefFilename('');}}>
        Cambiar referencia
