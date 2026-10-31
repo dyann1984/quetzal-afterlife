@@ -22,7 +22,7 @@ export const TARGET_VIEW:[number,number,number]=[0.5,-0.55,0];
 export type QKind='pluma'|'solido'|'anillo'|'globo';
 export interface QPart{id:string;kind:QKind;geometry:THREE.BufferGeometry}
 export interface QMeta{
- tips:Array<{x:number;y:number;group:string;length:number;bbox:[number,number]}>;
+ tips:Array<{x:number;y:number;group:string;length:number;bbox:[number,number];width:number}>;
  ringSamples:Array<[number,number]>;
  head:{center:[number,number];beakTip:[number,number]};
  tailTips:Array<[number,number]>;
@@ -32,7 +32,7 @@ export interface QMeta{
 const V=(x:number,y:number,z=0)=>new THREE.Vector3(x,y,z);
 const rad=(d:number)=>d*Math.PI/180;
 const onRing=(deg:number,rho:number):[number,number]=>[RING.cx+Math.cos(rad(deg))*RING.rx*rho,RING.cy+Math.sin(rad(deg))*RING.ry*rho];
-const leaf=(w:number)=>(t:number)=>w*Math.pow(Math.max(0,Math.sin(Math.PI*Math.pow(t,0.72))),0.8);
+const leaf=(w:number)=>(t:number)=>w*Math.pow(Math.max(0,Math.sin(Math.PI*Math.pow(t,0.6))),0.85);
 
 interface Attrs{pos:number[];aU:number[];aT:number[];aPhase:number[];aTone:number[];aLayer:number[];idx:number[]}
 const blank=():Attrs=>({pos:[],aU:[],aT:[],aPhase:[],aTone:[],aLayer:[],idx:[]});
@@ -88,39 +88,31 @@ function sweep(points:Array<[number,number,number]>,radii:number[],o:{segs?:numb
  }
  return toGeometry(a);
 }
-function sphere(r:number,c:[number,number,number],tone:number){
- const g=new THREE.SphereGeometry(r,14,10),n=g.getAttribute('position').count;g.deleteAttribute('uv');
- g.translate(...c);
- g.setAttribute('aU',new THREE.Float32BufferAttribute(new Array(n).fill(0.5),1));g.setAttribute('aT',new THREE.Float32BufferAttribute(new Array(n).fill(0),1));
- g.setAttribute('aPhase',new THREE.Float32BufferAttribute(new Array(n).fill(0),1));g.setAttribute('aTone',new THREE.Float32BufferAttribute(new Array(n).fill(tone),1));
- g.setAttribute('aLayer',new THREE.Float32BufferAttribute(new Array(n).fill(0),1));return g;
-}
-
-// ─── Plumas del emblema: medias lunas CONCÉNTRICAS que siguen el círculo (remolino), no un abanico ─────────
-interface Whirl{group:string;a0:number;r0:number;a1:number;rho:number;w:number;z0:number;z1:number;tone:number;cup?:number}
+// ─── Plumas del emblema: hojas ANCHAS y curvas, superpuestas en capas (remolino concéntrico en forma de Q) ─────
+interface Whirl{group:string;a0:number;r0:number;a1:number;rho:number;w:number;z:number;tone:number;cup?:number}
 const lerp=(a:number,b:number,t:number)=>a+(b-a)*t;
 const smooth=(x:number)=>{const t=Math.min(1,Math.max(0,x));return t*t*(3-2*t);};
-/** Espiral: nace cerca del cuerpo (radio r0, ángulo a0) y se abre hasta el radio rho barriendo en sentido antihorario hasta a1. */
+/** Espiral: nace cerca del cuerpo (radio r0, ángulo a0) y se abre hasta el radio rho barriendo en sentido antihorario hasta a1.
+ *  La profundidad z es constante por pluma (+ una joroba común): las capas no se cruzan y el orden de superposición es limpio. */
 function whirlCurve(s:Whirl){
  const pts:THREE.Vector3[]=[];
  for(let i=0;i<=9;i++){
   const u=i/9,ang=rad(s.a0+(s.a1-s.a0)*Math.pow(u,0.9)),rr=s.r0+(s.rho-s.r0)*smooth(u/0.55);
-  pts.push(V(RING.cx+Math.cos(ang)*RING.rx*rr,RING.cy+Math.sin(ang)*RING.ry*rr,lerp(s.z0,s.z1,u)*2.4+0.35*Math.sin(Math.PI*u)));
+  pts.push(V(RING.cx+Math.cos(ang)*RING.rx*rr,RING.cy+Math.sin(ang)*RING.ry*rr,s.z+0.12*Math.sin(Math.PI*u)));
  }
  return new THREE.CatmullRomCurve3(pts,false,'centripetal');
 }
 function whirlSpecs():Whirl[]{
  const out:Whirl[]=[];
- // Mitad superior: crestas y alas que nacen en la cabeza y barren a la izquierda (las exteriores, más largas)
- for(let k=0;k<8;k++){const f=k/7;out.push({group:'cresta-alas',a0:72+(k%2)*5,r0:0.37,a1:lerp(204,130,f),rho:lerp(1.0,0.56,f),w:lerp(0.66,0.44,f),z0:lerp(-0.05,0.5,f),z1:lerp(-0.3,0.35,f),tone:k===0?0.95:k===7?0:0});}
- // Cresta: plumas largas y arqueadas que suben desde la cabeza hacia arriba y se curvan a la izquierda
- for(let k=0;k<5;k++){const f=k/4;out.push({group:'cresta',a0:66+k*3,r0:0.4,a1:lerp(122,80,f),rho:lerp(1.02,0.8,f),w:lerp(0.36,0.3,f),z0:0.5,z1:0.3-f*0.2,tone:k%2===0?0.9:0.3});}
+ // Mitad superior: hojas grandes que nacen tras la cabeza y barren a la izquierda; las exteriores, más largas y más atrás
+ for(let k=0;k<10;k++){const f=k/9;out.push({group:'cresta-alas',a0:72+(k%2)*4,r0:0.37,a1:lerp(208,130,f),rho:lerp(1.0,0.56,f),w:lerp(0.8,0.52,f),z:-0.95+k*0.08,tone:k===0?0.95:0,cup:0.45});}
  // Alas medias: del cuello hacia la izquierda y abajo
- for(let k=0;k<6;k++){const f=k/5;out.push({group:'alas-medias',a0:lerp(92,126,f),r0:0.33,a1:lerp(252,208,f),rho:lerp(0.94,0.62,f),w:lerp(0.62,0.44,f),z0:lerp(-0.2,0.3,f),z1:lerp(-0.4,0.15,f),tone:k===0?0.7:0});}
+ for(let k=0;k<6;k++){const f=k/5;out.push({group:'alas-medias',a0:lerp(92,126,f),r0:0.33,a1:lerp(252,208,f),rho:lerp(0.94,0.62,f),w:lerp(0.88,0.6,f),z:-0.15+k*0.1,tone:k===0?0.7:0,cup:0.45});}
  // Barrido inferior: cierran la parte baja de la Q hasta el arranque de la cola
- for(let k=0;k<5;k++){const f=k/4;out.push({group:'barrido-inferior',a0:lerp(188,216,f),r0:0.3,a1:lerp(302,262,f),rho:lerp(0.98,0.74,f),w:lerp(0.52,0.4,f),z0:lerp(-0.1,0.2,f),z1:lerp(-0.25,0.1,f),tone:k===0?0.8:0});}
- // Pecho: plumas curvas descendentes que cubren el cuello
- for(let k=0;k<12;k++){const f=k/11;out.push({group:'pecho',a0:lerp(40,105,f),r0:0.2,a1:lerp(246,190,f),rho:lerp(0.6,0.3,f),w:lerp(0.36,0.28,f),z0:0.6+f*0.1,z1:0.45,tone:k%5===0?0.7:0,cup:0.4});}
+ for(let k=0;k<5;k++){const f=k/4;out.push({group:'barrido-inferior',a0:lerp(188,216,f),r0:0.3,a1:lerp(302,262,f),rho:lerp(0.98,0.74,f),w:lerp(0.74,0.52,f),z:-0.55+k*0.1,tone:k===0?0.8:0,cup:0.45});}
+ // Espiral interior: rellena el centro de la Q con hojas que irradian desde el cuello (sin huecos vacíos)
+ for(let k=0;k<7;k++){const f=k/6;out.push({group:'espiral-interior',a0:lerp(96,150,f),r0:0.26,a1:lerp(190,262,f),rho:lerp(0.5,0.72,f),w:lerp(0.55,0.62,f),z:0.05+k*0.07,tone:0,cup:0.45});} // Pecho: hojas anchas y descendentes que cubren el cuello (delante, por debajo de la cara)
+ for(let k=0;k<8;k++){const f=k/7;out.push({group:'pecho',a0:lerp(50,104,f),r0:0.2,a1:lerp(244,196,f),rho:lerp(0.55,0.32,f),w:lerp(0.62,0.5,f),z:0.55+f*0.4,tone:k%4===0?0.6:0,cup:0.5});}
  return out;
 }
 function ringBand(){
@@ -133,43 +125,54 @@ function ringBand(){
  };
  return {geometry:mergeGeometries([band(0.46,0,0,0),band(0.05,0,-0.32,1),band(0.05,0.7,0.34,2)])!,samples};
 }
+const solid=(g:THREE.BufferGeometry,tone:number)=>{
+ const n=g.getAttribute('position').count;g.deleteAttribute('uv');
+ g.setAttribute('aU',new THREE.Float32BufferAttribute(new Array(n).fill(0.5),1));g.setAttribute('aT',new THREE.Float32BufferAttribute(new Array(n).fill(0),1));
+ g.setAttribute('aPhase',new THREE.Float32BufferAttribute(new Array(n).fill(0),1));g.setAttribute('aTone',new THREE.Float32BufferAttribute(new Array(n).fill(tone),1));
+ g.setAttribute('aLayer',new THREE.Float32BufferAttribute(new Array(n).fill(0),1));return g;
+};
 
 export function buildQ():{parts:QPart[];meta:QMeta}{
- const meta:QMeta={tips:[],ringSamples:[],head:{center:HEAD_CENTER,beakTip:[1.56,0.66]},tailTips:[],featherCount:0};
+ const meta:QMeta={tips:[],ringSamples:[],head:{center:HEAD_CENTER,beakTip:[1.68,0.5]},tailTips:[],featherCount:0};
  const feathers:THREE.BufferGeometry[]=[];
  whirlSpecs().forEach((s,i)=>{
   const curve=whirlCurve(s),tip=curve.getPoint(1),len=curve.getLength();
   feathers.push(ribbon(curve,{phase:i*0.77,tone:s.tone,cup:s.cup,width:leaf(s.w)}));
   const bb=new THREE.Box3().setFromPoints(curve.getPoints(24)),sz=bb.getSize(V(0,0));
-  meta.tips.push({x:tip.x,y:tip.y,group:s.group,length:len,bbox:[sz.x,sz.y]});
- }); // Cabeza emplumada: plumas cortas y curvas alrededor del orbe de cristal (contorno luminoso, sin sólidos opacos)
- for(let k=0;k<7;k++){
-  const phi0=105+k*24,r=0.5+0.2*((k*7)%3)/2,pts:THREE.Vector3[]=[];
-  for(let i=0;i<=6;i++){const u=i/6,ang=rad(phi0+95*u),rr=r*(1+0.18*Math.sin(Math.PI*u));pts.push(V(HEAD_CENTER[0]+0.18+Math.cos(ang)*rr*1.05,HEAD_CENTER[1]+0.02+Math.sin(ang)*rr*0.95,0.46+0.05*Math.sin(u*3)));}
-  const c=new THREE.CatmullRomCurve3(pts,false,'centripetal');
-  feathers.push(ribbon(c,{phase:40+k*0.9,tone:k%5===0?0.9:0,cup:0.35,segs:16,width:leaf(0.2+0.04*(k%3))}));
-  const bb=new THREE.Box3().setFromPoints(c.getPoints(10)),sz=bb.getSize(V(0,0)),tp=c.getPoint(1);
-  meta.tips.push({x:tp.x,y:tp.y,group:'cabeza-plumas',length:c.getLength(),bbox:[sz.x,sz.y]});
- } // Cola: 3 plumas largas que cruzan la base y terminan a la derecha (trazo de la Q)
+  meta.tips.push({x:tip.x,y:tip.y,group:s.group,length:len,bbox:[sz.x,sz.y],width:s.w});
+ });
+ // Cresta: hojas anchas que suben desde la nuca como llamas y se arquean hacia la izquierda, con puntas afiladas
+ const crestTips:Array<[number,number]>=[[-0.1,2.95],[-0.95,2.8],[-1.85,2.5],[-2.7,2.05],[-3.3,1.5]];
+ crestTips.forEach((tp,k)=>{
+  const rx=0.58+0.05*k,ry=1.5,z=-0.36+0.05*k;
+  const c=new THREE.CubicBezierCurve3(V(rx,ry,z),V(rx-0.05-0.12*k,ry+1.0,z),V(tp[0]+0.9,tp[1]-0.55+0.18*k,z+0.1),V(tp[0],tp[1],z+0.1));
+  feathers.push(ribbon(c,{phase:30+k*1.1,tone:k%2===0?0.9:0.3,cup:0.5,width:leaf(0.78-0.05*k)}));
+  const bb=new THREE.Box3().setFromPoints(c.getPoints(20)),sz=bb.getSize(V(0,0));
+  meta.tips.push({x:tp[0],y:tp[1],group:'cresta',length:c.getLength(),bbox:[sz.x,sz.y],width:0.78-0.05*k});
+ }); // Cola: 3 hojas anchas que nacen en el vientre, bajan y cruzan hacia la derecha (el trazo de la Q)
  const tails:THREE.BufferGeometry[]=[];
  const T:Array<{p:[number,number,number][];w:number;tone:number}>=[
-  {p:[[-0.15,-1.6,0.3],[0.7,-3.55,0.1],[2.9,-3.5,-0.05],[4.45,-2.5,0.1]],w:0.5,tone:0.9},
-  {p:[[0.05,-1.4,0.15],[1.0,-3.15,0.0],[2.7,-3.05,-0.15],[4.05,-2.2,-0.05]],w:0.4,tone:0.5},
-  {p:[[-0.35,-1.7,0.0],[0.3,-3.9,-0.2],[2.6,-3.9,-0.3],[4.2,-2.9,-0.15]],w:0.34,tone:0.2},
+  {p:[[0.55,-0.95,0.2],[1.0,-2.9,0.15],[3.2,-3.5,0.1],[4.45,-2.5,0.15]],w:0.85,tone:0.9},
+  {p:[[0.35,-0.8,0.05],[0.7,-2.6,0.0],[2.9,-3.15,-0.05],[4.05,-2.25,-0.05]],w:0.7,tone:0.5},
+  {p:[[0.15,-0.7,-0.1],[0.2,-3.0,-0.15],[2.5,-3.9,-0.2],[4.2,-2.95,-0.2]],w:0.56,tone:0.2},
  ];
  T.forEach((t,i)=>{
   const c=new THREE.CubicBezierCurve3(V(...t.p[0]),V(...t.p[1]),V(...t.p[2]),V(...t.p[3]));
-  tails.push(ribbon(c,{phase:20+i*1.3,tone:t.tone,cup:0.3,segs:44,width:leaf(t.w)}));
-  const e=c.getPoint(1);meta.tailTips.push([e.x,e.y]);meta.tips.push({x:e.x,y:e.y,group:'cola',length:c.getLength(),bbox:[Math.abs(t.p[3][0]-t.p[0][0]),Math.abs(t.p[3][1]-t.p[0][1])]});
+  tails.push(ribbon(c,{phase:20+i*1.3,tone:t.tone,cup:0.45,segs:44,width:leaf(t.w)}));
+  const e=c.getPoint(1);meta.tailTips.push([e.x,e.y]);meta.tips.push({x:e.x,y:e.y,group:'cola',length:c.getLength(),bbox:[Math.abs(t.p[3][0]-t.p[0][0]),Math.abs(t.p[3][1]-t.p[0][1])],width:t.w});
  });
  meta.featherCount=feathers.length+tails.length;
 
- const ell=(rx:number,ry:number,rz:number,c:[number,number,number],tone:number)=>{const g=sphere(1,[0,0,0],tone);g.scale(rx,ry,rz);g.translate(...c);return g;};
+ // Cabeza y cuerpo SÓLIDOS (sombreado con volumen): cráneo, pico en gancho, ojo con aro dorado, cuello en S hasta el vientre
+ const ell=(rx:number,ry:number,rz:number,c:[number,number,number],tone:number)=>{const g=solid(new THREE.SphereGeometry(1,28,20),tone);g.scale(rx,ry,rz);g.translate(...c);return g;};
+ 
  const head=mergeGeometries([
-  ell(0.7,0.64,0.55,[0.78,1.12,0],0),                                                   // cabeza redondeada
-  sweep([[1.1,1.14,0],[1.34,1.1,0],[1.48,0.9,0],[meta.head.beakTip[0],meta.head.beakTip[1],0]],[0.22,0.17,0.09,0.012],{squash:0.95,segs:16,radial:12,tone:1}), // pico curvo
-  sphere(0.085,[0.98,1.26,0.4],3),sphere(0.085,[0.98,1.26,-0.4],3),                     // ojos luminosos
- ])!; const ring=ringBand();meta.ringSamples=ring.samples;
+  ell(0.84,0.62,0.54,[0.86,1.12,0],0),
+  sweep([[1.2,1.14,0],[1.46,1.13,0],[1.64,0.96,0],[meta.head.beakTip[0],meta.head.beakTip[1],0]],[0.23,0.17,0.07,0.01],{squash:0.95,segs:20,radial:12,tone:1}),
+  sweep([[0.7,0.98,0],[0.5,0.62,0],[0.42,0.1,0],[0.6,-0.6,0],[1.2,-1.25,0],[2.0,-1.8,0]],[0.26,0.33,0.34,0.27,0.19,0.08],{squash:0.8,segs:36,radial:20}),
+  solid(new THREE.SphereGeometry(0.15,18,14),3).translate(1.12,1.27,0.5),solid(new THREE.SphereGeometry(0.15,18,14),3).translate(1.12,1.27,-0.5),
+ ])!;
+ const ring=ringBand();meta.ringSamples=ring.samples;
  const globe=new THREE.WireframeGeometry(new THREE.SphereGeometry(1.02,22,14));/* centrado en el origen: la escena lo coloca y lo gira sobre su propio eje */
 
  const parts:QPart[]=[
@@ -182,7 +185,6 @@ export function buildQ():{parts:QPart[];meta:QMeta}{
  feathers.forEach(g=>g.dispose());tails.forEach(g=>g.dispose());
  return {parts,meta};
 }
-
 export const triangleCount=(parts:QPart[])=>parts.reduce((n,p)=>n+(p.geometry.index?p.geometry.index.count/3:0),0);
 export function bounds(parts:QPart[]){const b=new THREE.Box3();for(const p of parts){p.geometry.computeBoundingBox();b.union(p.geometry.boundingBox!);}return b;}
 
@@ -208,6 +210,13 @@ export function sampleSurface(parts:QPart[],count:number,seed=1998){
  }
  return {points,gold};
 }
+
+
+
+
+
+
+
 
 
 

@@ -31,15 +31,15 @@ export function revealAt(elapsed:number,reduced:boolean){
 const VERT=`
 attribute float aU,aT,aPhase,aTone,aLayer;
 uniform float uTime;
-varying float vU,vT,vTone,vLayer;varying vec3 vP,vN,vV;
+varying float vU,vT,vTone,vLayer,vPh;varying vec3 vP,vN,vV;
 void main(){
-  vU=aU;vT=aT;vTone=aTone;vLayer=aLayer;vP=position;
+  vU=aU;vT=aT;vTone=aTone;vLayer=aLayer;vPh=aPhase;vP=position;
   vec3 p=position;
   #if MODE==0
     float ang=sin(uTime*0.55+aPhase)*0.02*aT;
     vec2 c=vec2(0.1,0.1);vec2 d=p.xy-c;float cs=cos(ang),sn=sin(ang);
     p.xy=c+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs);
-    p.z+=sin(uTime*0.9+aPhase*1.7+aT*4.0)*0.08*aT;
+    p.z+=sin(uTime*0.9+aPhase*1.7+aT*4.0)*0.05*aT;
   #elif MODE==1
     p*=1.0+sin(uTime*1.3)*0.006;
   #endif
@@ -47,9 +47,11 @@ void main(){
   vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);
   gl_Position=projectionMatrix*mv;
 }`;
+// Plumas y cabeza: superficies OPACAS con iluminación (volumen real, las capas se tapan entre sí).
+// El anillo (MODE 2) es el único elemento translúcido/aditivo junto con las partículas.
 const FRAG=`
 uniform float uTime,uReveal,uLost,uRec,uCell,uOpacity;
-varying float vU,vT,vTone,vLayer;varying vec3 vP,vN,vV;
+varying float vU,vT,vTone,vLayer,vPh;varying vec3 vP,vN,vV;
 float h3(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}
 void main(){
   float dist=length(vP.xy-vec2(${HEAD_CENTER[0].toFixed(2)},${HEAD_CENTER[1].toFixed(2)}));
@@ -57,46 +59,55 @@ void main(){
   float hh=h3(floor(vP/uCell));
   if(hh<uLost)discard;                                      // registros perdidos: celdas disueltas
   float rc=step(uLost,hh)*step(hh,uLost+uRec);              // recuperados con daño: tinte dorado
-  vec3 deep=vec3(0.02,0.2,0.85),cyan=vec3(0.12,0.82,1.0),gold=vec3(0.88,0.72,0.38);
-  float fres=pow(1.0-abs(dot(normalize(vN),normalize(vV))),2.0);
-  vec3 col;float a;
+  vec3 deep=vec3(0.02,0.14,0.60),mid=vec3(0.12,0.56,1.0),tipc=vec3(0.55,0.90,1.0),pale=vec3(0.88,0.98,1.0),gold=vec3(0.9,0.74,0.38);
+  vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;
+  vec3 v=normalize(vV),L=normalize(vec3(-0.35,0.7,0.62));
+  float diff=0.5+0.5*dot(n,L);
+  float fres=pow(1.0-clamp(dot(n,v),0.0,1.0),2.2);
+  float spec=pow(max(dot(reflect(-L,n),v),0.0),22.0);
+  vec3 col;float a=1.0;
   #if MODE==0
     float e=abs(vU-0.5)*2.0;
-    float edge=smoothstep(0.6,1.0,e);
-    float rib=1.0-smoothstep(0.0,0.06,e);
-    float barbs=smoothstep(0.78,1.0,sin(vT*34.0+e*9.0)*0.5+0.5)*(1.0-e*0.4);
-    float scan=step(0.95,fract(vT*34.0+vU*2.0));
-    col=mix(deep,cyan,clamp(vT*0.55+edge*0.45+fres*0.4,0.0,1.0));
-    col+=vec3(0.25,0.85,1.0)*(edge*0.55+rib*0.5+barbs*0.18+scan*0.2+fres*0.35);
-    col=mix(col,gold,vTone*smoothstep(0.5,1.0,vT)*0.8);
-    a=(0.24+0.4*edge+0.28*rib+0.1*barbs+0.06*scan+0.2*fres)*mix(1.0,0.5,vLayer);
-    a*=smoothstep(0.0,0.05,vT);
+    float edge=smoothstep(0.74,1.0,e);                      // filo claro
+    float rib=1.0-smoothstep(0.0,0.03,e);                   // raquis sutil
+    float vein=smoothstep(0.82,1.0,sin(vT*58.0+e*13.0)*0.5+0.5)*(1.0-e*0.6);   // barbas finas y tenues
+    float jit=0.74+0.5*fract(vPh*0.618);                   // cada pluma con un tono ligeramente distinto
+    vec3 base=mix(deep,mid,smoothstep(0.0,0.45,vT));base=mix(base,tipc,smoothstep(0.45,1.0,vT)*0.8)*jit;
+    float sheen=pow(1.0-e,2.0);                            // brillo suave a lo largo del raquis
+    col=base*(0.5+0.85*diff)+pale*sheen*0.16*diff;
+    col=mix(col,pale,edge*0.62+fres*0.3);
+    col+=pale*(rib*0.14+vein*0.13)+vec3(0.5,0.9,1.0)*spec*0.35;
+    col*=0.82+0.18*smoothstep(0.0,0.2,vT);                 // sombra de contacto en la base de cada pluma
+    col=mix(col,gold,vTone*smoothstep(0.62,1.0,vT)*0.75);
+    col*=mix(1.0,0.78,vLayer);
   #elif MODE==1
-    float scan=0.5+0.5*sin(vP.y*70.0+uTime*1.5);
-    col=mix(vec3(0.03,0.3,0.95),vec3(0.3,0.92,1.0),fres)+vec3(0.1,0.5,0.9)*scan*0.1;
-    a=0.2+0.75*pow(fres,1.3);                                   // orbe de cristal: brilla en el contorno, interior casi transparente
-    float grid=step(0.92,fract(vP.x*16.0+vP.y*7.0));col+=vec3(0.15,0.6,1.0)*grid*0.3;a+=grid*0.08;
-    if(vTone>0.5&&vTone<2.5){col=mix(col,gold,0.9);a=0.92;}
-    if(vTone>2.5){col=vec3(0.25,0.95,1.0);a=1.0;}
+    vec3 base=mix(vec3(0.02,0.14,0.68),vec3(0.1,0.52,1.0),clamp(n.y*0.5+0.5,0.0,1.0));
+    col=base*(0.5+0.85*diff)+pale*fres*0.5+vec3(0.5,0.9,1.0)*spec*0.5+vec3(0.25,0.7,1.0)*smoothstep(0.3,1.0,n.y)*0.22;
+    if(vP.y<0.8){col*=0.62;col+=vec3(0.15,0.5,1.0)*smoothstep(0.85,1.0,sin(vP.y*34.0+vP.x*14.0)*0.5+0.5)*0.22*(1.0-fres);}   // cuello: sombra y plumón\n    col+=vec3(0.1,0.4,0.9)*smoothstep(0.93,1.0,sin(vP.y*55.0+uTime*1.2)*0.5+0.5)*0.04;
+    if(vTone>0.5&&vTone<2.5){col=vec3(0.95,0.74,0.34)*(0.45+0.75*diff)+vec3(1.0,0.9,0.6)*spec*0.6;}
+    if(vTone>2.5){col=vec3(0.6,1.0,1.0);}
+  #elif MODE==3
+    float e=abs(vU-0.5)*2.0;
+    col=vec3(0.22,0.72,1.0);
+    a=0.02+0.26*fres+0.2*smoothstep(0.7,1.0,e)*step(vU,0.995);
   #else
     float e=abs(vU-0.5)*2.0;
     float edge=smoothstep(0.7,1.0,e);
-    float lines=smoothstep(0.93,1.0,sin(vU*30.0))*0.4;
-    float tick=step(0.94,fract(vT*160.0))*(1.0-e)*0.7;
-    col=mix(vec3(0.05,0.45,0.95),cyan,edge)+vec3(0.1,0.5,0.8)*tick;
+    float tick=step(0.96,fract(vT*120.0))*(1.0-e)*0.5;
+    col=mix(vec3(0.05,0.42,0.95),vec3(0.2,0.8,1.0),edge)+vec3(0.1,0.5,0.8)*tick;
     col=mix(col,gold,vTone);
-    a=0.1+0.4*edge+0.18*lines+0.25*tick;
+    a=0.06+0.34*edge+0.14*tick;
   #endif
-  col=mix(col,gold,rc*0.55);
+  col=mix(col,gold,rc*0.5);
   float ring=1.0-smoothstep(0.0,0.4,uReveal-dist);          // borde de la onda de materialización
-  col+=vec3(0.3,0.85,1.0)*ring*step(uReveal,20.0)*1.4;
-  a=a*uOpacity*0.9+ring*step(uReveal,20.0)*0.2;
-  gl_FragColor=vec4(col,a);
+  col+=vec3(0.3,0.85,1.0)*ring*step(uReveal,20.0)*1.2;
+  gl_FragColor=vec4(col*uOpacity,a);
 }`;
 
-function holoMaterial(mode:0|1|2,shared:Shared){
+function holoMaterial(mode:0|1|2|3,shared:Shared){
+ const opaque=mode===0||mode===1;
  return new THREE.ShaderMaterial({defines:{MODE:mode},vertexShader:VERT,fragmentShader:FRAG,uniforms:shared.u as unknown as {[k:string]:THREE.IUniform},
-  transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+  transparent:!opaque,depthWrite:opaque,side:THREE.DoubleSide,blending:opaque?THREE.NoBlending:THREE.AdditiveBlending});
 }
 
 // ─── Partículas ──────────────────────────────────────────────────────────────
@@ -143,7 +154,7 @@ export function Aura({shared,fractions,quality,opacity=1,reducedMotion,forceComp
   return g;
  },[cloud]);
  useEffect(()=>()=>{geo.dispose();},[geo]);
- const uniforms=useMemo(()=>({uProgress:{value:0},uTime:{value:0},uSize:{value:32},uPixelRatio:{value:1},uOpacity:{value:1}}),[]);
+ const uniforms=useMemo(()=>({uProgress:{value:0},uTime:{value:0},uSize:{value:24},uPixelRatio:{value:1},uOpacity:{value:1}}),[]);
  const ref=useRef<THREE.ShaderMaterial>(null);
  useFrame(()=>{
   const r=shared.u.uReveal.value;
@@ -169,7 +180,7 @@ export function Pedestal({y=-3.95}:{y?:number}){
 }
 
 /** Teselas digitales a la derecha; cada una representa una fracción de los registros declarados (estado real). */
-export function DataTiles({counts,paused,reduced}:{counts:Fractions;paused:boolean;reduced:boolean}){
+export function DataTiles({counts,paused,reduced,decorative=false}:{counts:Fractions;paused:boolean;reduced:boolean;decorative?:boolean}){
  const states=useMemo<TileState[]>(()=>tileStates(counts,36),[counts]);
  const mesh=useRef<THREE.InstancedMesh>(null);
  const base=useMemo(()=>states.map((s,k)=>{
@@ -186,14 +197,17 @@ export function DataTiles({counts,paused,reduced}:{counts:Fractions;paused:boole
  useFrame((_,dt)=>{if(paused||reduced||!mesh.current)return;t.current+=dt;mesh.current.position.y=Math.sin(t.current*0.6)*0.06;});
  if(base.length===0)return null;
  return <instancedMesh ref={mesh} key={base.length} args={[undefined,undefined,base.length]} frustumCulled={false}>
-  <boxGeometry args={[1,1,0.05]}/><meshBasicMaterial transparent opacity={0.7} blending={THREE.AdditiveBlending} depthWrite={false}/>
+  <boxGeometry args={[1,1,0.05]}/><meshBasicMaterial transparent opacity={decorative?0.32:0.7} blending={THREE.AdditiveBlending} depthWrite={false}/>
  </instancedMesh>;
 }
+
+/** Sin evidencia las teselas son decorativas (tenues, todas del mismo estado); con evidencia reflejan el reparto real. */
+const decorative0=(hasData:boolean,f:Fractions):Fractions=>hasData?f:{intact:1,recovered:0,lost:0};
 
 // ─── Composición ─────────────────────────────────────────────────────────────
 export function QuetzalQ({shared,fractions,quality,paused,reduced,runId,hasData,motion=true}:{shared:Shared;fractions:Fractions;quality:Quality;paused:boolean;reduced:boolean;runId:number;hasData:boolean;motion?:boolean}){
  const q=getQ();
- const mats=useMemo(()=>({0:holoMaterial(0,shared),1:holoMaterial(1,shared),2:holoMaterial(2,shared)}),[shared]);
+ const mats=useMemo(()=>({0:holoMaterial(0,shared),1:holoMaterial(1,shared),2:holoMaterial(2,shared),3:holoMaterial(3,shared)}),[shared]);
  useEffect(()=>()=>{Object.values(mats).forEach(m=>m.dispose());},[mats]);
  useEffect(()=>{setFractions(shared,fractions);},[shared,fractions]);
  const root=useRef<THREE.Group>(null),globe=useRef<THREE.LineSegments>(null);
@@ -214,13 +228,19 @@ export function QuetzalQ({shared,fractions,quality,paused,reduced,runId,hasData,
   <group ref={root}>
    {q.parts.map(p=>p.kind==='globo'
     ?<lineSegments key={p.id} ref={globe} geometry={p.geometry} position={[1.4,-0.25,-0.8]} frustumCulled={false}><lineBasicMaterial color="#2cc7fa" transparent opacity={0.24} blending={THREE.AdditiveBlending} depthWrite={false}/></lineSegments>
-    :<mesh key={p.id} geometry={p.geometry} material={matFor(p.kind)} frustumCulled={false} renderOrder={p.kind==='anillo'?1:2}/>)}
+    :<group key={p.id}><mesh geometry={p.geometry} material={matFor(p.kind)} frustumCulled={false} renderOrder={p.kind==='anillo'?1:2}/>{(p.kind==='pluma'||p.kind==='solido')&&<mesh geometry={p.geometry} material={mats[3]} frustumCulled={false} renderOrder={3} scale={1.012}/>}</group>)}
    <Aura shared={shared} fractions={fractions} quality={quality} reducedMotion={reduced}/>
-   {hasData&&<DataTiles counts={fractions} paused={paused} reduced={reduced}/>}
+   <DataTiles counts={decorative0(hasData,fractions)} paused={paused} reduced={reduced} decorative={!hasData}/>
   </group>
   <Pedestal/>
  </>;
 }
+
+
+
+
+
+
 
 
 

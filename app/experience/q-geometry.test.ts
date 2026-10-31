@@ -57,7 +57,17 @@ describe('emblema Q: composición medible (proxy de la referencia, no sustituye 
    expect(h>3&&w<1.2,`${t.group} vertical (${w.toFixed(1)}×${h.toFixed(1)})`).toBe(false);
   }
  });
- it('la cabeza mira a la derecha con pico curvo hacia abajo',()=>{
+ it('plumas ANCHAS y superpuestas (no cintas): ancho/largo, capas distintas en profundidad y cobertura del centro', () => {
+  const blades = meta.tips.filter(t => t.group !== 'cola');
+  expect(blades.filter(t => t.width >= 0.5).length).toBeGreaterThanOrEqual(30);
+  const ratio = blades.reduce((s, t) => s + t.width / t.length, 0) / blades.length;
+  expect(ratio).toBeGreaterThan(0.1);                       // las cintas anteriores estaban por debajo de 0.07
+  expect(meta.tips.filter(t => t.group === 'cola').every(t => t.width >= 0.5)).toBe(true);
+  expect(blades.some(t => t.group === 'espiral-interior')).toBe(true);   // el centro de la Q está relleno de hojas
+  const pl = part('plumas').geometry.getAttribute('position'), zs = new Set<string>();
+  for (let i = 0; i < pl.count; i += 7) zs.add(pl.getZ(i).toFixed(1));
+  expect(zs.size).toBeGreaterThanOrEqual(10);               // capas a distintas profundidades: el orden de superposición se resuelve con el z-buffer
+ }); it('la cabeza mira a la derecha con pico curvo hacia abajo',()=>{
   const [hx,hy]=meta.head.center,[bx,by]=meta.head.beakTip;
   expect(bx).toBeGreaterThan(hx+0.4);expect(by).toBeLessThan(hy);
   const head=part('cabeza').geometry;head.computeBoundingBox();
@@ -86,6 +96,7 @@ describe('muestreo para partículas',()=>{
   expect(ms).toBeLessThan(400);
  });
 });
+
 
 
 

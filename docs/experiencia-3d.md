@@ -159,3 +159,16 @@ Frontal, 30°, ~53° (límite del arrastre), Dashboard completo (800 px), experi
 - Calidad artística: modelo GLB de un artista 3D.
 - El panel de pruebas solo captura 800 px de ancho: el layout de escritorio ancho (hero a la derecha) no se capturó entero.
 - Mediciones de fps fiables solo con el panel visible; no se midió en otros equipos.
+
+## Corrección del holograma v2 (rama `feat/hologram-q-v2`)
+
+Único cambio: `app/experience/q-geometry.ts`, `app/experience/QuetzalQ.tsx` y su test. Dashboard, logo, motores, menús y exportaciones no se tocaron.
+
+- **Plumas**: ~36 láminas anchas, curvadas y superpuestas (ancho/largo > 0,1, ≥10 capas de profundidad), con volumen (nervio central elevado, dos capas) y superficie **opaca iluminada**; ya no son cintas de luz aditivas.
+- **Color**: azul eléctrico dominante; dorado solo en puntas, pico y recuperados con daño.
+- **Cabeza**: sólido único con ojo luminoso, pico dorado curvo y cresta de 5 plumas explícitas; cuello esbelto oscurecido.
+- **Menos ruido**: halo aditivo tenue (modo 3), líneas de barbas casi invisibles, bloques de datos decorativos atenuados cuando no hay datos reales.
+- **Se mantiene**: anillo holográfico, globo, bloques de datos, rotación interactiva, partículas, mapeo honesto (perdidos = celdas disueltas, recuperados con daño = tinte dorado).
+- **Pruebas**: 243 tests, typecheck, lint (0 errores), build OK. Capturas en `docs/capturas-holograma-v2/` (`comparativa.html`).
+
+**Límite honesto**: la silueta y la composición se aproximan a la referencia, pero no la igualan: la cabeza es un volumen simple y el material es sólido, no cristal translúcido. Para mayor fidelidad se recomienda un modelo GLB artístico.
