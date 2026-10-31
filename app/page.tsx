@@ -10,10 +10,13 @@ import {
 } from '../lib/project';
 import {exportInventoryCsv,exportInventoryJson,exportVerificationCsv,exportVerificationJson,inferredFields} from '../lib/export';
 import Engine,{ENGINE_SECTIONS,type EngineSection} from './engine';
+import type {Stage} from '../lib/experience';
 import {DEMO_CSV_A,DEMO_CSV_B,DEMO_INV_A,DEMO_INV_B,DEMO_VERIFICATION} from '../lib/demo';
 
 const sections=['Dashboard','Nueva recuperación','Laboratorio','Verificación','Archivo'] as const;
 type Section=(typeof sections)[number]|EngineSection;
+// Etapa de la experiencia 3D que corresponde a cada sección (por defecto, la materialización).
+const STAGE_FOR_SECTION:Partial<Record<Section,Stage>>={Discovery:'discovery',Recovery:'recovery','Schema Intelligence':'reconstruction',Reconstruction:'reconstruction','AI Analyst':'reconstruction','Resurrection Studio':'studio','Evidence Vault':'vault'};
 const isEngineSection=(s:Section):s is EngineSection=>(ENGINE_SECTIONS as readonly string[]).includes(s);
 const CONF:Record<string,string>={alto:'◉ alto',medio:'◎ medio',bajo:'○ bajo'};
 const ROL:Record<string,string>={id:'IDENTIFICADOR',cantidad:'CANTIDAD',nombre:'NOMBRE'};
@@ -45,6 +48,7 @@ export default function Home(){
  const [projectName,setProjectName]=useState('');
  const [savedMsg,setSavedMsg]=useState('');
  const [isDemo,setIsDemo]=useState(false);
+ const [expOpen,setExpOpen]=useState(false);
  // Store
  const [store,setStore]=useState<ProjectStore>({version:1,projects:[]});
  const [openProject,setOpenProject]=useState<Project|null>(null);
@@ -201,6 +205,7 @@ export default function Home(){
    <header>
     <div><span className="eyebrow">QUETZAL AFTERLIFE / {section.toUpperCase()}</span><p>THE DIGITAL RESURRECTION ENGINE</p></div>
     <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
+     <button className="secondary" style={{padding:'6px 12px',fontSize:'10px',marginTop:'0'}} onClick={()=>setExpOpen(true)}>✦ Ver resurrección</button>
      <button className="secondary" style={{padding:'6px 12px',fontSize:'10px',marginTop:'0'}} onClick={loadDemo}>▶ DEMO</button>
      <span className="status"><i/> SISTEMA LOCAL</span>
     </div>
@@ -503,7 +508,7 @@ export default function Home(){
     </div>
    </div>}
 
-   <Engine section={isEngineSection(section)?section:null} goto={setSection}/>
+   <Engine section={isEngineSection(section)?section:null} goto={setSection} experience={{open:expOpen,stage:STAGE_FOR_SECTION[section]??'materializar',onClose:()=>setExpOpen(false)}}/>
 
    <footer><span>QUETZAL AFTERLIFE <b> / </b> THE DIGITAL RESURRECTION ENGINE</span><span>MOTOR 2.0 &nbsp; · &nbsp; 2026</span></footer>
   </main>

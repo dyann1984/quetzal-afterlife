@@ -11,3 +11,27 @@
 
 .demo-banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 16px;padding:10px 14px;border:1px solid #d4af37;background:rgba(212,175,55,.08);color:#e8d9a0;font-size:12px}
 
+
+/* ── Experiencia de resurrección (3D holográfico) ───────────────────────── */
+.exp-overlay{position:fixed;inset:0;z-index:100;background:radial-gradient(ellipse at 50% 38%,#0a1a26 0%,#06090d 62%);display:flex;flex-direction:column;padding:16px 5%;overflow:auto}
+.exp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.exp-top h2{font:normal 34px Georgia,serif;margin:6px 0 0}
+.exp-top .secondary{margin-top:0}
+.exp-banner{margin:10px 0 0}
+.exp-stage{position:relative;flex:1 1 auto;min-height:320px;margin:8px 0;border:1px solid #1d2c38;background:linear-gradient(180deg,rgba(44,199,250,.04),transparent)}
+.exp-stage canvas{display:block}
+.exp-loading,.exp-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#94a0ac;text-align:center;padding:20px}
+.exp-fallback{position:absolute;inset:0;overflow:auto;padding:16px}
+.exp-bar{width:100%;max-width:520px;display:block;margin:10px 0}
+.exp-facts{font-size:12px;color:#94a0ac}.exp-facts ul{line-height:1.8;padding-left:18px}
+.exp-facts table{width:100%;border-collapse:collapse}.exp-facts th{color:#53cfff;text-align:left}.exp-facts th,.exp-facts td{border-bottom:1px solid #25313b;padding:6px 8px}
+.exp-narrative{font-size:13px;line-height:1.6;color:#c8d4dc;margin:4px 0 8px;max-width:900px}
+.exp-controls{border-top:1px solid #202832;padding-top:10px}
+.exp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.exp-tabs button{background:none;border:1px solid #263440;color:#87939f;padding:8px 12px;font-size:11px;letter-spacing:1px;border-radius:3px}
+.exp-tabs button.active{border-color:#13bfff;color:#f3f8fa;background:#101e29}
+.exp-btns{display:flex;gap:8px;flex-wrap:wrap}.exp-btns .secondary{margin-top:0;padding:8px 12px;font-size:11px}
+.exp-btns .secondary:disabled{opacity:.4;cursor:not-allowed}
+.exp-text{margin-top:8px;font-size:12px;color:#94a0ac}.exp-text summary{cursor:pointer}
+@media(max-width:600px){.exp-overlay{padding:12px 14px}.exp-top h2{font-size:26px}.exp-stage{min-height:300px}.exp-tabs button{padding:7px 9px;font-size:10px}}
+@media(prefers-reduced-motion:reduce){.exp-overlay *{transition:none!important;animation:none!important}}

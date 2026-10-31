@@ -1,5 +1,7 @@
 'use client';
 import {useMemo,useState} from 'react';
+import dynamic from 'next/dynamic';
+import {buildSceneModel,type Stage} from '../lib/experience';
 import {ingest,IngestError,DEFAULT_LIMITS,type Ingested} from '../lib/ingest';
 import {diagnose} from '../lib/discovery';
 import {recoverTable,type RecoveredTable} from '../lib/recovery';
@@ -32,7 +34,9 @@ function Empty({go}:{go:()=>void}){
  return <><p>Todavía no hay evidencia. Importa archivos en <em>Discovery</em> o carga el escenario sintético.</p><button className="secondary" onClick={go}>Ir a Discovery →</button></>;
 }
 
-export default function Engine({section,goto}:{section:EngineSection|null;goto:(s:EngineSection)=>void}){
+const ExperienceOverlay=dynamic(()=>import('./experience/ExperienceOverlay'),{ssr:false});
+
+export default function Engine({section,goto,experience}:{section:EngineSection|null;goto:(s:EngineSection)=>void;experience:{open:boolean;stage:Stage;onClose:()=>void}}){
  const [items,setItems]=useState<Ingested[]>([]);
  const [synthetic,setSynthetic]=useState(false);
  const [errors,setErrors]=useState<string[]>([]);
@@ -141,8 +145,10 @@ export default function Engine({section,goto}:{section:EngineSection|null;goto:(
   setOpMsg(r.ok?'✓ '+okMsg:'✗ '+r.error);if(r.ok)setRev(v=>v+1);
  }
 
+ // Modelo de escena para la experiencia 3D: solo lectura del estado real del motor.
+ const sceneModel=useMemo(()=>tables.length?buildSceneModel({evidences:items.map(i=>i.evidence),diagnoses,tables,schema,model,synthetic}):null,[items,diagnoses,tables,schema,model,synthetic]);
  const hidden=section===null;
- return <div hidden={hidden}>
+ return <><div hidden={hidden}>
   {section==='Discovery'&&<div className="workspace">
    <span className="kicker">DISCOVERY / DIAGNÓSTICO DE FORMATOS</span>
    <h1>Discovery<span className="gold">.</span></h1>
@@ -340,7 +346,9 @@ export default function Engine({section,goto}:{section:EngineSection|null;goto:(
     </>}
    </>}
   </div>}
- </div>;
+ </div>
+ {experience.open&&<ExperienceOverlay scene={sceneModel} initialStage={experience.stage} onClose={experience.onClose} onLoadScenario={loadScenario}/>}
+ </>;
 }
 
 function SchemaDiagram({schema,sel,onSel}:{schema:ReturnType<typeof inferSchema>;sel:string;onSel:(n:string)=>void}){
