@@ -200,7 +200,9 @@ export function inferSchema(tables: RecoveredTable[]): SchemaModel {
       for (const [v, refs] of seen) if (refs.length > 1) issues.push({ kind: 'clave_duplicada', table: t.name, message: `El valor "${v}" de ${keyCol} se repite en los registros ${refs.join(', ')}.`, refs });
     }
     const nonKey = t.columns.map(c => c.name).filter(c => c !== keyCol);
-    if (nonKey.length >= 2) {
+    // Solo tiene sentido buscar duplicados "salvo la clave" con una clave simple inferida;
+    // con clave compuesta o sin clave, filas con el mismo contenido pueden ser legítimas.
+    if (prof.primaryKey?.columns.length === 1 && nonKey.length >= 2) {
       const groups = new Map<string, number[]>();
       rows.forEach(r => {
         if (r.unknownFields.some(u => nonKey.includes(u))) return;

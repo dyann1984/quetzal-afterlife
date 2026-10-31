@@ -68,6 +68,8 @@ describe('inferSchema', () => {
     const dup = s.issues.find(i => i.kind === 'registros_duplicados' && i.table === 'CLIENTES');
     expect(dup?.refs).toEqual([2, 11]);
     expect(s.tables.find(t => t.name === 'CLIENTES')!.deletedRows).toBe(1);
+    // Sin falsos positivos: solo CLIENTES tiene un duplicado real
+    expect(s.issues.filter(i => i.kind === 'registros_duplicados').map(i => i.table)).toEqual(['CLIENTES']);
   });
   it('cardinalidad observada', async () => {
     const s = inferSchema(await tables());

@@ -87,3 +87,9 @@ Navegador (build de producción, puerto 4173): importación DBF sintética, bot�
 guardar/reabrir/eliminar, recuperación de almacén corrupto (respaldo), sin desbordamiento horizontal a 375, 768 y desktop.
 No verificado: archivos DBF reales de sistemas heredados (no hay ninguno en el equipo), navegadores distintos al integrado,
 descarga física de archivos (se inspeccionó el contenido del Blob, no el diálogo de descarga del sistema).
+
+
+## Motor 2.0 (2026-10-31, rama feat/quetzal-resurrection-engine-v2)
+
+Ver docs/motor-2.0.md. Resultados al cierre: ver el reporte de la sesión; 163+ pruebas, tsc, ESLint y build ejecutados.
+Fixtures y daños 100 % sintéticos: no demuestran recuperación de archivos reales.

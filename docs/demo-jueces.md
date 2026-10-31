@@ -41,3 +41,14 @@ Abrir http://localhost:4173. Para regenerar los fixtures: `node scripts/make-fix
 
 El lector DBF se probó con archivos construidos por las pruebas automatizadas y por `scripts/make-fixtures.mjs`.
 No se dispuso de ningún archivo `.dbf` real de un sistema heredado; no se afirma compatibilidad con ellos.
+
+
+## Ruta C — Motor de resurrección 2.0 (≈4 min, todo SINTÉTICO)
+
+1. **Discovery** → *Cargar escenario SINTÉTICO*: 6 archivos con SHA-256; 4 con daños (VENTAS.DBF truncado, INVENTARIO.DBF con bytes corruptos, DETALLE.CSV irregular, RESPALDO.DB con cabecera incompleta).
+2. **Recovery**: VENTAS declara 15 registros, se leen 13 (12 íntegros + 1 parcial), 2 perdidos, 2 celdas desconocidas.
+3. **Schema Intelligence**: diagrama con 4 relaciones inferidas; huérfanos C-099, P-077, V-0014/V-0015 (estos dos coherentes con la pérdida por truncamiento).
+4. **AI Analyst** → *Analizar con el analista local*; aprobar las 4 relaciones y el duplicado CLIENTES 2/11; *Aplicar*. Probar el proveedor externo sin consentimiento: se bloquea.
+5. **Reconstruction**: validaciones de integridad (fallas esperadas visibles), reglas, excluidos, huella del modelo.
+6. **Resurrection Studio**: buscar, navegar cliente → ventas → detalle; insertar una venta con cliente inexistente (se rechaza) y con uno válido (se acepta en la copia); exportar prototipo HTML.
+7. **Evidence Vault**: *Generar expediente* → «Integridad verificada»; descargar JSON e informe.

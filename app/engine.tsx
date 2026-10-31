@@ -1,6 +1,6 @@
 'use client';
 import {useMemo,useState} from 'react';
-import {ingest,IngestError,type Ingested} from '../lib/ingest';
+import {ingest,IngestError,DEFAULT_LIMITS,type Ingested} from '../lib/ingest';
 import {diagnose} from '../lib/discovery';
 import {recoverTable,type RecoveredTable} from '../lib/recovery';
 import {inferSchema} from '../lib/schema';
@@ -86,9 +86,12 @@ export default function Engine({section,goto}:{section:EngineSection|null;goto:(
  }
  async function onFiles(e:React.ChangeEvent<HTMLInputElement>){
   const list=[...(e.target.files??[])];
-  const files=await Promise.all(list.map(async f=>({name:f.name,bytes:new Uint8Array(await f.arrayBuffer())})));
+  // Se rechaza por tamaño ANTES de leer el contenido en memoria.
+  const tooBig=list.filter(f=>f.size>DEFAULT_LIMITS.maxBytes);
+  const files=await Promise.all(list.filter(f=>f.size<=DEFAULT_LIMITS.maxBytes).map(async f=>({name:f.name,bytes:new Uint8Array(await f.arrayBuffer())})));
   e.target.value='';
   await addFiles(files,false);
+  if(tooBig.length)setErrors(prev=>[...prev,...tooBig.map(f=>`"${f.name}" supera el límite de ${DEFAULT_LIMITS.maxBytes/1048576} MB.`)]);
  }
  function loadScenario(){
   reset();
