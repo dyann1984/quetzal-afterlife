@@ -1,4 +1,4 @@
-# Modelo GLB artístico del quetzal: estado y recursos que faltan
+﻿# Modelo GLB artístico del quetzal: estado y recursos que faltan
 
 Rama `feat/hologram-glb` (parte de `feat/hologram-q-v2`, respaldo en el commit `499fd74`).
 
@@ -6,7 +6,7 @@ Rama `feat/hologram-glb` (parte de `feat/hologram-q-v2`, respaldo en el commit `
 
 | Recurso | Estado |
 |---|---|
-| Blender | **No instalado** (ni en PATH, ni en Program Files, ni vía winget) |
+| Blender | **Instalado el 2026-10-31**: Blender 4.5.10 LTS en `C:\Program Files\Blender Foundation\Blender 4.5\blender.exe` (winget, hash verificado). Ejecuta en modo `--background`; trae su propio Python (`bpy`) |
 | Python | **No disponible** (solo el acceso directo de Microsoft Store) |
 | Imagen de referencia (`2.webp`) | **No existe en disco**: solo está en el chat. No se puede usar como entrada de ninguna herramienta |
 | Modelos existentes (`.glb`, `.gltf`, `.blend`) | Ninguno |
@@ -27,3 +27,7 @@ Sin Blender ni un modelo base, lo único posible es construir la geometría por 
 ## Estado
 
 No se modificó ningún archivo de código en esta rama. No hay GLB, renders ni preview nuevos. El preview del v2 sigue siendo la única versión desplegada como preview. Producción y master intactos.
+
+
+## Actualización
+Blender ya está operativo. Sigue bloqueado: la imagen de referencia no se puede recuperar del historial de la sesión (solo conserva capturas propias). Hace falta que el archivo se guarde en docs/referencia/quetzal-ref.png.
