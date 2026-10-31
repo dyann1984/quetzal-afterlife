@@ -9,10 +9,12 @@ import {
   type Project,type ProjectStore,
 } from '../lib/project';
 import {exportInventoryCsv,exportInventoryJson,exportVerificationCsv,exportVerificationJson,inferredFields} from '../lib/export';
+import Engine,{ENGINE_SECTIONS,type EngineSection} from './engine';
 import {DEMO_CSV_A,DEMO_CSV_B,DEMO_INV_A,DEMO_INV_B,DEMO_VERIFICATION} from '../lib/demo';
 
 const sections=['Dashboard','Nueva recuperación','Laboratorio','Verificación','Archivo'] as const;
-type Section=(typeof sections)[number];
+type Section=(typeof sections)[number]|EngineSection;
+const isEngineSection=(s:Section):s is EngineSection=>(ENGINE_SECTIONS as readonly string[]).includes(s);
 const CONF:Record<string,string>={alto:'◉ alto',medio:'◎ medio',bajo:'○ bajo'};
 const ROL:Record<string,string>={id:'IDENTIFICADOR',cantidad:'CANTIDAD',nombre:'NOMBRE'};
 const STATUS_LABEL:Record<string,string>={
@@ -191,7 +193,9 @@ export default function Home(){
    <div className="brand"><img src="/quetzal-logo.png" alt="Quetzal Afterlife"/><span>RESURRECTION ENGINE</span></div>
    <div className="navlabel">ESPACIO DE TRABAJO</div>
    <nav aria-label="Navegación principal">{sections.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['◈','＋','⌬','◇','▤'][i]}</span>{s}</button>)}</nav>
-   <div className="sidebottom"><span className="pulse"/> FASE 03 <small>Verificación · Local</small></div>
+   <div className="navlabel" style={{marginTop:'22px'}}>MOTOR DE RESURRECCIÓN 2.0</div>
+   <nav aria-label="Motor de resurrección">{ENGINE_SECTIONS.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['⌕','✚','⬡','⚙','✦','▣','⚿'][i]}</span>{s}</button>)}</nav>
+   <div className="sidebottom"><span className="pulse"/> MOTOR 2.0 <small>Recuperación · Local</small></div>
   </aside>
   <main>
    <header>
@@ -212,6 +216,7 @@ export default function Home(){
       <div style={{display:'flex',gap:'12px',flexWrap:'wrap'}}>
        <button className="primary" onClick={()=>setSection('Nueva recuperación')}>Iniciar recuperación <span>↗</span></button>
        <button className="secondary" onClick={loadDemo} style={{marginTop:'22px'}}>▶ Ver demo Kiroween</button>
+       <button className="secondary" onClick={()=>setSection('Discovery')} style={{marginTop:'22px'}}>Motor 2.0: descubrir y reconstruir →</button>
       </div>
      </div>
      <div className="hero"><img src="/quetzal-logo.png" alt="Logo oficial de Quetzal Afterlife"/></div>
@@ -498,7 +503,9 @@ export default function Home(){
     </div>
    </div>}
 
-   <footer><span>QUETZAL AFTERLIFE <b> / </b> THE DIGITAL RESURRECTION ENGINE</span><span>FASE 03 &nbsp; · &nbsp; 2026</span></footer>
+   <Engine section={isEngineSection(section)?section:null} goto={setSection}/>
+
+   <footer><span>QUETZAL AFTERLIFE <b> / </b> THE DIGITAL RESURRECTION ENGINE</span><span>MOTOR 2.0 &nbsp; · &nbsp; 2026</span></footer>
   </main>
  </div>;
 }
