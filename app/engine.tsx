@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import {useEffect,useMemo,useState} from 'react';
 import {sceneStore} from '../lib/sceneStore';
 import dynamic from 'next/dynamic';
@@ -12,8 +12,9 @@ import {localAnalyst,remoteAnalystPlaceholder,runAnalyst,toApprovals,ConsentErro
 import {buildAppModel,createWorkingCopy,insertRow,updateRow,deleteRow,search,related,exportPrototypeHtml} from '../lib/studio';
 import {buildDossier,verifyDossier,dossierJson,renderReportMarkdown,renderReportHtml,type Dossier,type TransformationStep,type VersionEntry} from '../lib/vault';
 import {buildScenario,SCENARIO_LABEL,SCENARIO_DAMAGE} from '../lib/scenario';
+import FileRecovery from './file-recovery';
 
-export const ENGINE_SECTIONS=['Discovery','Recovery','Schema Intelligence','Reconstruction','AI Analyst','Resurrection Studio','Evidence Vault'] as const;
+export const ENGINE_SECTIONS=['Discovery','Recovery','Schema Intelligence','Reconstruction','AI Analyst','Resurrection Studio','Evidence Vault','File Recovery'] as const;
 export type EngineSection=(typeof ENGINE_SECTIONS)[number];
 
 const SEV:Record<string,string>={info:'vstatus-nc',aviso:'vstatus-only',dano:'vstatus-diff'};
@@ -152,6 +153,7 @@ export default function Engine({section,goto,experience}:{section:EngineSection|
  useEffect(()=>{sceneStore.set(sceneModel);},[sceneModel]);
  const hidden=section===null;
  return <><div hidden={hidden}>
+  {section==='File Recovery'&&<FileRecovery/>}
   {section==='Discovery'&&<div className="workspace">
    <span className="kicker">DISCOVERY / DIAGNÓSTICO DE FORMATOS</span>
    <h1>Discovery<span className="gold">.</span></h1>
@@ -371,3 +373,4 @@ function SchemaDiagram({schema,sel,onSel}:{schema:ReturnType<typeof inferSchema>
    <text x={p.x} y={p.y+12} fill="#687784" fontSize="9" textAnchor="middle">{t.activeRows} reg · PK {t.primaryKey?.columns.join('+')??'—'}</text></g>;})}
  </svg>;
 }
+

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import {useState,useEffect,useCallback} from 'react';
 import {analyzeCsv,MAX_BYTES,type CsvResult} from '../lib/csv';
 import {parseDbf,MAX_DBF_BYTES,type DbfResult} from '../lib/dbf';
@@ -199,7 +199,7 @@ export default function Home(){
    <div className="navlabel">ESPACIO DE TRABAJO</div>
    <nav aria-label="Navegación principal">{sections.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['◈','＋','⌬','◇','▤'][i]}</span>{s}</button>)}</nav>
    <div className="navlabel" style={{marginTop:'22px'}}>MOTOR DE RESURRECCIÓN 2.0</div>
-   <nav aria-label="Motor de resurrección">{ENGINE_SECTIONS.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['⌕','✚','⬡','⚙','✦','▣','⚿'][i]}</span>{s}</button>)}</nav>
+   <nav aria-label="Motor de resurrección">{ENGINE_SECTIONS.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['⌕','✚','⬡','⚙','✦','▣','⚿','⛁'][i]}</span>{s}</button>)}</nav>
    <div className="sidebottom"><span className="pulse"/> MOTOR 2.0 <small>Recuperación · Local</small></div>
   </aside>
   <main>
@@ -515,3 +515,4 @@ export default function Home(){
   </main>
  </div>;
 }
+
