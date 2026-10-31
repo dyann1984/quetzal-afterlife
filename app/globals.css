@@ -35,3 +35,4 @@
 .exp-text{margin-top:8px;font-size:12px;color:#94a0ac}.exp-text summary{cursor:pointer}
 @media(max-width:600px){.exp-overlay{padding:12px 14px}.exp-top h2{font-size:26px}.exp-stage{min-height:300px}.exp-tabs button{padding:7px 9px;font-size:10px}}
 @media(prefers-reduced-motion:reduce){.exp-overlay *{transition:none!important;animation:none!important}}
+@media(max-width:600px){.exp-tabs button,.exp-btns .secondary,.exp-top .secondary{min-height:40px}}

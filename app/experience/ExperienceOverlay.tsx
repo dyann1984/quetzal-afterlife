@@ -74,7 +74,8 @@ export default function ExperienceOverlay({scene,initialStage,onClose,onLoadScen
  },[tour,paused,explore,reduced,stage,scene]);
 
  const onFps=useCallback((fps:number)=>{
-  if(document.visibilityState!=='visible')return;
+  // Menos de 4 fps indica que el navegador estrangula la página (pestaña/panel oculto), no falta de rendimiento: se ignora.
+  if(document.visibilityState!=='visible'||fps<4)return;
   low.current=fps<24?low.current+1:0;
   if(low.current>=6){low.current=0;setQuality(q=>{const n=stepDown(q);if(n!==q)setNotice(`Rendimiento bajo (${fps.toFixed(0)} fps): calidad reducida a «${n}».`);return n;});}
  },[]);

@@ -77,9 +77,15 @@ export function mulberry32(seed: number) {
   };
 }
 
+/** Anillo elíptico vertical (visible de frente) con ligera profundidad alterna. */
 const ring = (i: number, n: number, r: number, y = 0): Vec3 => {
   const a = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(n, 1);
-  return [Math.cos(a) * r, y, Math.sin(a) * r];
+  return [Math.cos(a) * r * 1.25, Math.sin(a) * r * 0.62 + y, ((i % 2) - 0.5) * 1.2];
+};
+/** Anillo horizontal para las columnas de registros (se leen como una ciudad). */
+const flatRing = (i: number, n: number, r: number): Vec3 => {
+  const a = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(n, 1);
+  return [Math.cos(a) * r, 0, Math.sin(a) * r * 0.6];
 };
 
 export const CUBE_CAP = 40;
@@ -112,7 +118,7 @@ export function buildSceneModel(input: SceneInput): SceneModel {
     const push = (kind: TableColumn['cubes'][number], n: number) => { for (let k = 0; k < Math.ceil(n / perCube); k++) seq.push(kind); };
     push('intacto', t.report.intact); push('recuperado', t.report.recoveredDamaged); push('perdido', t.report.lost);
     return {
-      table: t.name, pos: ring(i, tables.length, 3.0, 0), intact: t.report.intact, recovered: t.report.recoveredDamaged,
+      table: t.name, pos: flatRing(i, tables.length, 3.6), intact: t.report.intact, recovered: t.report.recoveredDamaged,
       lost: t.report.lost, unknownCells: t.report.cellsUnknown, cubes: seq, perCube,
     };
   });
@@ -211,12 +217,14 @@ export function buildQuetzalCloud(count: number, fractions: { intact: number; re
   // Alas: plumas en abanico, con curvatura
   for (let k = 0; k < nWing; k++, i++) {
     const side = k % 2 === 0 ? 1 : -1;
-    const feather = Math.floor(rnd() * 9), t = rnd();
-    const ang = -0.15 + feather * 0.17;
-    const len = 1.2 + 1.4 * t;
-    const x = side * (0.25 + len * Math.cos(ang) * 0.85);
-    const y = 0.55 + len * Math.sin(ang) * 0.9 - 0.45 * t * t;
-    set(i, 1, x, y, -0.15 * t + (rnd() - 0.5) * 0.05 + (feather % 2) * 0.03);
+    // Abanico de plumas de arriba-afuera (0.65 rad) a abajo-afuera (-0.8 rad), con relleno lateral (coberteras)
+    const feather = Math.floor(rnd() * 9), t = Math.sqrt(rnd());
+    const ang = 0.65 - feather * 0.18 - 0.25 * t * t;
+    const len = 0.9 + 1.9 * t;
+    const spread = (rnd() - 0.5) * (0.1 + 0.28 * t);
+    const x = side * (0.25 + len * Math.cos(ang) * 0.9 - spread * Math.sin(ang));
+    const y = 0.5 + len * Math.sin(ang) * 0.9 + spread * Math.cos(ang);
+    set(i, 1, x, y, -0.2 * t + (rnd() - 0.5) * 0.05 + (feather % 2) * 0.03);
   }
   // Cola: 3 plumas largas ondulantes (rasgo del quetzal)
   for (let k = 0; k < nTail; k++, i++) {

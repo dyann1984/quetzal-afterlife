@@ -5,7 +5,7 @@
  */
 import {useEffect,useLayoutEffect,useMemo,useRef} from 'react';
 import {Canvas,useFrame,useThree} from '@react-three/fiber';
-import {OrbitControls,Html} from '@react-three/drei';
+import {OrbitControls} from '@react-three/drei';
 import * as THREE from 'three';
 import {buildQuetzalCloud,PARTICLE_TIERS,type Quality,type SceneModel,type Stage,type Vec3} from '../../lib/experience';
 
@@ -84,14 +84,25 @@ function Scanner({paused,reducedMotion}:{paused:boolean;reducedMotion:boolean}){
  const ref=useRef<THREE.Mesh>(null);const t=useRef(0);
  useFrame((_,dt)=>{if(paused||reducedMotion||!ref.current)return;t.current+=dt*0.35;ref.current.position.y=-4.4+((t.current%1))*6.2;(ref.current.material as THREE.MeshBasicMaterial).opacity=0.22*Math.sin(Math.PI*(t.current%1));});
  return <>
-  <mesh ref={ref} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[0.1,2.4,64]}/><meshBasicMaterial color={BLUE} transparent opacity={0.15} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false}/></mesh>
+  <mesh ref={ref} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[2.1,2.4,96]}/><meshBasicMaterial color={BLUE} transparent opacity={0.15} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false}/></mesh>
   <mesh position={[0,-4.55,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[2.2,2.28,96]}/><meshBasicMaterial color={GOLD} transparent opacity={0.8}/></mesh>
   <mesh position={[0,-4.55,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.4,1.43,96]}/><meshBasicMaterial color={BLUE} transparent opacity={0.5}/></mesh>
  </>;
 }
 
-const label=(txt:string,sub?:string,warn?:boolean)=><Html center distanceFactor={9} style={{pointerEvents:'none',whiteSpace:'nowrap',textAlign:'center',fontFamily:'Arial,sans-serif'}}>
- <div style={{color:warn?'#ff9a9a':'#e9edf1',fontSize:'13px',fontWeight:700,textShadow:'0 0 6px #000'}}>{txt}</div>{sub&&<div style={{color:'#8aa0b0',fontSize:'10px',textShadow:'0 0 6px #000'}}>{sub}</div>}</Html>;
+/** Rótulo como sprite con textura propia (canvas 2D local): sin portales al DOM ni fuentes externas. */
+function Label({txt,sub,warn}:{txt:string;sub?:string;warn?:boolean}){
+ const tex=useMemo(()=>{
+  const c=document.createElement('canvas');c.width=640;c.height=160;
+  const g=c.getContext('2d')!;g.textAlign='center';g.textBaseline='middle';g.shadowColor='#000';g.shadowBlur=8;
+  g.font='bold 54px Arial, sans-serif';g.fillStyle=warn?'#ff9a9a':'#e9edf1';g.fillText(txt,320,sub?56:80,620);
+  if(sub){g.font='32px Arial, sans-serif';g.fillStyle='#8aa0b0';g.fillText(sub,320,116,620);}
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t;
+ },[txt,sub,warn]);
+ useEffect(()=>()=>{tex.dispose();},[tex]);
+ return <sprite scale={[3.2,0.8,1]} renderOrder={10}><spriteMaterial map={tex} transparent depthTest={false} depthWrite={false}/></sprite>;
+}
+const label=(txt:string,sub?:string,warn?:boolean)=><Label txt={txt} sub={sub} warn={warn}/>;
 
 function Files({scene,x=0,wire=false}:{scene:SceneModel;x?:number;wire?:boolean}){
  return <group position={[x,0,0]}>{scene.files.map(f=>{
@@ -107,19 +118,19 @@ function Files({scene,x=0,wire=false}:{scene:SceneModel;x?:number;wire?:boolean}
 function Columns({scene}:{scene:SceneModel}){
  const kinds=useMemo(()=>{
   const m={intacto:[] as THREE.Matrix4[],recuperado:[] as THREE.Matrix4[],perdido:[] as THREE.Matrix4[]};
-  for(const c of scene.columns)c.cubes.forEach((k,i)=>{m[k].push(new THREE.Matrix4().makeTranslation(c.pos[0],-1.6+i*0.19,c.pos[2]));});
+  for(const c of scene.columns)c.cubes.forEach((k,i)=>{m[k].push(new THREE.Matrix4().makeTranslation(c.pos[0],-1.9+i*0.12,c.pos[2]));});
   return m;
  },[scene.columns]);
  return <group>
   <Inst list={kinds.intacto} color={BLUE} opacity={0.9}/><Inst list={kinds.recuperado} color={GOLD} opacity={0.95}/><Inst list={kinds.perdido} color={RED} opacity={0.5} wire/>
-  {scene.columns.map(c=><group key={c.table} position={[c.pos[0],-2.05,c.pos[2]]}>{label(c.table,`${c.intact} · ${c.recovered} · ${c.lost}${c.perCube>1?` (1 cubo = ${c.perCube})`:''}`,c.lost>0)}</group>)}
+  {scene.columns.map(c=><group key={c.table} position={[c.pos[0],-2.4,c.pos[2]]}>{label(c.table,`${c.intact} · ${c.recovered} · ${c.lost}${c.perCube>1?` (1 cubo = ${c.perCube})`:''}`,c.lost>0)}</group>)}
  </group>;
 }
 function Inst({list,color,opacity,wire=false}:{list:THREE.Matrix4[];color:THREE.Color;opacity:number;wire?:boolean}){
  const ref=useRef<THREE.InstancedMesh>(null);
  useLayoutEffect(()=>{const m=ref.current;if(!m)return;list.forEach((mx,i)=>m.setMatrixAt(i,mx));m.instanceMatrix.needsUpdate=true;},[list]);
  if(list.length===0)return null;
- return <instancedMesh ref={ref} args={[undefined,undefined,list.length]} key={list.length}><boxGeometry args={[0.5,0.15,0.5]}/><meshBasicMaterial color={color} transparent opacity={opacity} wireframe={wire} depthWrite={false} blending={THREE.AdditiveBlending}/></instancedMesh>;
+ return <instancedMesh ref={ref} args={[undefined,undefined,list.length]} key={list.length}><boxGeometry args={[0.5,0.1,0.5]}/><meshBasicMaterial color={color} transparent opacity={opacity} wireframe={wire} depthWrite={false} blending={THREE.AdditiveBlending}/></instancedMesh>;
 }
 
 function Lines({pairs,color,opacity}:{pairs:Array<[Vec3,Vec3]>;color:THREE.Color;opacity:number}){
@@ -172,6 +183,19 @@ function Vault({scene}:{scene:SceneModel}){
  </group>;
 }
 
+/** Detecta una pérdida REAL de contexto WebGL. El escuchador se retira al desmontar, porque
+ *  R3F fuerza la pérdida de contexto al destruir el Canvas (p. ej. al cambiar a la vista 2D). */
+function ContextGuard({onLost}:{onLost:()=>void}){
+ const gl=useThree(s=>s.gl);
+ useEffect(()=>{
+  const el=gl.domElement;
+  const h=(e:Event)=>{e.preventDefault();onLost();};
+  el.addEventListener('webglcontextlost',h);
+  return()=>el.removeEventListener('webglcontextlost',h);
+ },[gl,onLost]);
+ return null;
+}
+
 function PerfProbe({quality,stage,onFps}:{quality:Quality;stage:Stage;onFps:(f:number)=>void}){
  const {gl}=useThree();const acc=useRef({t:0,n:0,total:0,samples:[] as number[]});
  useFrame((_,dt)=>{
@@ -190,7 +214,11 @@ function Rig({stage,paused,autoRotate,explore,reducedMotion}:{stage:Stage;paused
  const t=useRef(0);
  useFrame(({camera},dt)=>{
   if(paused||reducedMotion||explore)return;
-  t.current+=dt;camera.position.y+=((stage==='materializar'?-0.4:0.6)+Math.sin(t.current*0.4)*0.25-camera.position.y)*Math.min(1,dt*1.5);
+  t.current+=dt;const k=Math.min(1,dt*1.5);
+  camera.position.y+=((stage==='materializar'?0.4:stage==='recovery'?0.9:0.5)+Math.sin(t.current*0.4)*0.25-camera.position.y)*k;
+  // Más cerca en las etapas de datos; el quetzal completo necesita más distancia.
+  const dist=Math.hypot(camera.position.x,camera.position.z),want=stage==='materializar'?11:7.5;
+  if(dist>0.01){const f=1+((want-dist)*k)/dist;camera.position.x*=f;camera.position.z*=f;}
  });
  return <OrbitControls makeDefault enableDamping dampingFactor={0.08} autoRotate={autoRotate&&!paused&&!reducedMotion} autoRotateSpeed={0.9} enablePan={explore} enableZoom={explore} minDistance={4} maxDistance={16} maxPolarAngle={Math.PI*0.62}/>;
 }
@@ -198,19 +226,20 @@ function Rig({stage,paused,autoRotate,explore,reducedMotion}:{stage:Stage;paused
 export default function HoloScene(p:HoloProps){
  const {scene,stage,quality}=p;
  const dprMax=quality==='alta'?2:quality==='media'?1.5:1;
- const q=stage==='materializar'?{scale:1,presence:1,pos:[0,-0.6,0] as Vec3}:{scale:0.5,presence:0.3,pos:[0,-0.3,-2.2] as Vec3};
- return <Canvas dpr={[1,dprMax]} camera={{position:[0,0.4,9],fov:48}} frameloop={p.paused?'demand':'always'}
+ const q=stage==='materializar'?{scale:0.92,presence:1,pos:[0,1.0,0] as Vec3}:{scale:0.5,presence:0.3,pos:[0,0.2,-2.2] as Vec3};
+ return <Canvas dpr={[1,dprMax]} camera={{position:[0,0.4,11],fov:48}} frameloop={p.paused?'demand':'always'}
    gl={{antialias:quality!=='baja',powerPreference:'high-performance',alpha:true}}
-   onCreated={({gl})=>{gl.setClearColor(0x000000,0);gl.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();p.onContextLost();});}}
+   onCreated={({gl})=>{gl.setClearColor(0x000000,0);}}
    style={{width:'100%',height:'100%',touchAction:'none'}} aria-hidden="true">
   <Rig stage={stage} paused={p.paused} autoRotate={p.autoRotate} explore={p.explore} reducedMotion={p.reducedMotion}/>
   <QuetzalCloud scene={scene} quality={quality} paused={p.paused} reducedMotion={p.reducedMotion} runId={p.runId} scale={q.scale} presence={q.presence} position={q.pos}/>
-  {stage==='materializar'&&<Scanner paused={p.paused} reducedMotion={p.reducedMotion}/>}
+  {stage==='materializar'&&<group position={[0,0.95,0]} scale={0.92}><Scanner paused={p.paused} reducedMotion={p.reducedMotion}/></group>}
   {stage==='discovery'&&<Files scene={scene}/>}
   {stage==='recovery'&&<Columns scene={scene}/>}
   {stage==='reconstruction'&&<Network scene={scene}/>}
   {stage==='studio'&&<Studio scene={scene}/>}
   {stage==='vault'&&<Vault scene={scene}/>}
+  <ContextGuard onLost={p.onContextLost}/>
   <PerfProbe quality={quality} stage={stage} onFps={p.onFps}/>
  </Canvas>;
 }
