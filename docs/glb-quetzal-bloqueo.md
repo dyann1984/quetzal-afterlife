@@ -31,3 +31,6 @@ No se modificó ningún archivo de código en esta rama. No hay GLB, renders ni 
 
 ## Actualización
 Blender ya está operativo. Sigue bloqueado: la imagen de referencia no se puede recuperar del historial de la sesión (solo conserva capturas propias). Hace falta que el archivo se guarde en docs/referencia/quetzal-ref.png.
+
+## Avance (modelo creado en Blender)
+`tools/blender/build_quetzal.py` genera `public/models/quetzal.glb` (2,4 MB, ~85k triángulos, partes con nombre: plumas_cresta, plumas_alas, cola, cuerpo, cabeza, anillo, globo; UV y color de vértice por pluma). Renders en `docs/capturas-glb/`. Pendiente: aprobación visual; después, integración en R3F con el sistema de datos. Brechas conocidas frente a la referencia: la cabeza sigue siendo simple, el plumaje es más regular y la silueta es casi plana en profundidad.
