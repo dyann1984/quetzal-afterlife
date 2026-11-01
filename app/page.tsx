@@ -1,5 +1,8 @@
 ﻿'use client';
-import {useState,useEffect,useCallback} from 'react';
+import {useState,useEffect,useCallback,useSyncExternalStore} from 'react';
+import DashboardStats from './dashboard-stats';
+import {getSession,getServerSession,subscribeSession} from '../lib/filerec/session';
+import {explainRun} from '../lib/quetzalito/explain';
 import {analyzeCsv,MAX_BYTES,type CsvResult} from '../lib/csv';
 import {parseDbf,MAX_DBF_BYTES,type DbfResult} from '../lib/dbf';
 import {reconstructInventory,type InventoryResult,type InventoryRow} from '../lib/inventory';
@@ -35,7 +38,7 @@ const STATUS_CLASS:Record<string,string>={
 
 export default function Home(){
  // ── Sesión de trabajo ────────────────────────────────────────────────────
- useUi();   // idioma y tema globales: al cambiar se vuelve a pintar toda la página
+ const ui=useUi();   // idioma y tema globales: al cambiar se vuelve a pintar toda la página
  const [section,setSection]=useState<Section>('Dashboard');
  const [csvResult,setCsvResult]=useState<CsvResult|null>(null);
  const [dbfResult,setDbfResult]=useState<DbfResult|null>(null);
@@ -56,6 +59,10 @@ export default function Home(){
  const [expOpen,setExpOpen]=useState(false);
  // Store
  const [store,setStore]=useState<ProjectStore>({version:1,projects:[]});
+ // Último archivo resucitado: Quetzalito lo explica con frases construidas a partir del informe real.
+ const ses=useSyncExternalStore(subscribeSession,getSession,getServerSession);
+ const lastRun=ses.runs.find(r=>r.id===ses.active)??ses.runs[0];
+ const fileRun=lastRun&&lastRun.stages.every(st=>st.state!=='pendiente'&&st.state!=='activo')?(({headline,next})=>({headline,next}))(explainRun(lastRun,ui.lang)):null;
  const [openProject,setOpenProject]=useState<Project|null>(null);
 
  // Hidratación desde localStorage: solo puede leerse tras montar en el cliente.
@@ -225,23 +232,24 @@ export default function Home(){
       <h1>{tr('La evidencia es')}<br/><em>{tr('el punto de partida.')}</em></h1>
       <p>{tr('Recupera el contexto de sistemas heredados y construye un camino verificable hacia su reconstrucción.')}</p>
       <div style={{display:'flex',gap:'12px',flexWrap:'wrap'}}>
-       <button className="primary" onClick={()=>setSection('Nueva recuperación')}>{tr('Iniciar recuperación')} <span>↗</span></button>
+       <button className="primary" onClick={()=>setSection('File Recovery')}>{tr('Resucitar un archivo')} <span>↗</span></button>
        <button className="secondary" onClick={loadDemo} style={{marginTop:'22px'}}>{tr('▶ Ver demo Kiroween')}</button>
        <button className="secondary" onClick={()=>setSection('Discovery')} style={{marginTop:'22px'}}>{tr('Motor 2.0: descubrir y reconstruir →')}</button>
       </div>
      </div>
      <HeroHologram onOpen={()=>setExpOpen(true)}/>
     </div>
+    <DashboardStats projects={store.projects.length} goto={s=>setSection(s as Section)}/>
     <div className="sectionhead">
      <div><span className="eyebrow">{tr('TU ESPACIO DE TRABAJO')}</span><h2>{tr('El camino de la recuperación')}</h2></div>
-     <span className="muted">{tr('FASE 03 / VERIFICACIÓN')}</span>
     </div>
-    <div className="cards">{[
-     ['01','Archaeology','Importa evidencia CSV y DBF y examina su estructura.','DISPONIBLE'],
-     ['02','Reconstruction','Detecta operaciones de inventario y reconstruye el estado.','DISPONIBLE'],
-     ['03','Verification','Contrasta el inventario reconstruido contra una referencia independiente.','DISPONIBLE'],
-     ['04','Preservation','Guarda y reabre proyectos de recuperación.','DISPONIBLE'],
-    ].map(c=><article key={c[0]}><div className="cardtop"><span>{c[0]}</span><b>↗</b></div><h3>{c[1]}</h3><p>{tr(c[2])}</p><small>{tr(c[3])}</small></article>)}</div>
+    <div className="cards cards-5">{([
+     ['01','Resurrección de archivos','JSON, XML, CSV, SQLite, PNG, JPEG, PDF, ZIP/Office y texto: diagnóstico, reparación y validación en seis etapas.','File Recovery'],
+     ['02','Archaeology','Importa evidencia CSV y DBF y examina su estructura.','Nueva recuperación'],
+     ['03','Reconstruction','Detecta operaciones de inventario y reconstruye el estado.','Laboratorio'],
+     ['04','Verification','Contrasta el inventario reconstruido contra una referencia independiente.','Verificación'],
+     ['05','Preservation','Guarda y reabre proyectos de recuperación.','Archivo'],
+    ] as const).map(c=><article key={c[0]} role="button" tabIndex={0} onClick={()=>setSection(c[3] as Section)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSection(c[3] as Section);}}} style={{cursor:'pointer'}}><div className="cardtop"><span>{c[0]}</span><b>↗</b></div><h3>{tr(c[1])}</h3><p>{tr(c[2])}</p><small>{tr('DISPONIBLE')}</small></article>)}</div>
     <div className="note"><span>✧</span><div><strong>{tr('La confianza se construye con evidencia.')}</strong><p>{tr('Los datos recuperados, inferidos, verificados y desconocidos se distinguen explícitamente. Las funciones futuras no se presentan como completadas.')}</p></div></div>
    </>}
 
@@ -509,7 +517,7 @@ export default function Home(){
 
    <footer><span>{tr('QUETZAL AFTERLIFE')} <b> / </b> {tr('THE DIGITAL RESURRECTION ENGINE')}</span><span>{tr('MOTOR 2.0   ·   2026')}</span></footer>
   </main>
-  <Quetzalito section={section} onNavigate={s=>setSection(s as Section)} context={{hasData:!!invResult,isDemo,fileType,hasVerification:!!verResult}}/>
+  <Quetzalito section={section} onNavigate={s=>setSection(s as Section)} context={{hasData:!!invResult,isDemo,fileType,hasVerification:!!verResult,fileRun}}/>
  </div>;
 }
 
