@@ -5,6 +5,7 @@
  * Si un mensaje no tiene traducción se muestra en español: nunca se pierde información.
  */
 import {FILEREC_PAIRS} from './msgs-filerec';
+import {STRUCTURED_PAIRS} from './msgs-structured';
 type Pair=[string,string];
 const esc=(s:string)=>s.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
 
@@ -144,7 +145,9 @@ let compiled:Array<[RegExp,string]>|null=null;
 const exactMap=new Map<string,string>([...EXACT]);
 function compile(){
  if(compiled)return compiled;
- compiled=[...PAIRS,...FILEREC_PAIRS].map(([es,en])=>[new RegExp('^'+esc(es).replace(/\\?\{\}/g,'([\\s\\S]*?)')+'$'),en] as [RegExp,string]);
+ compiled=[...PAIRS,...FILEREC_PAIRS,].map(([es,en])=>[new RegExp('^'+esc(es).replace(/\\?\{\}/g,'([\\s\\S]*?)')+'$'),en] as [RegExp,string]);
+ // en los mensajes estructurados un hueco {} no cruza «; » (así «a; b» se traduce por partes); {*} sí puede abarcar varias partes
+ compiled.push(...STRUCTURED_PAIRS.map(([es,en])=>[new RegExp('^'+esc(es).replace(/\\?\{\\?\*\\?\}/g,'\u0000').replace(/\\?\{\}/g,'([^;]*?)').replace(/\u0000/g,'([\\s\\S]*?)')+'$'),en] as [RegExp,string]));
  return compiled;
 }
 const SMALL=new Set(['alta','media','baja']);

@@ -5,6 +5,8 @@
  */
 import { concat, crc32, deflateStored, ascii } from './core';
 import { buildZip } from './zip';
+import { readSqlite } from './sqlite';
+import { sqliteFixture } from './sqlite-fixture';
 
 export interface Fixture { name: string; bytes: Uint8Array; note: string; expectation: string }
 const enc = new TextEncoder();
@@ -71,7 +73,44 @@ export const FIXTURE_DAMAGE = [
   'DOCX íntegro, DOCX con una entrada alterada (CRC) y XLSX íntegro.',
   'ZIP sin directorio central (cola truncada).',
   'Imagen de disco sintética de 128 KiB: ruido + PNG, JPEG, PDF y DOCX sobre sectores de 512 B, uno de ellos parcialmente sobrescrito.',
+  'JSON con comentarios y comas finales, y JSON truncado a mitad de un registro.',
+  'XML con «&» sin escapar y XML truncado con etiquetas abiertas.',
+  'CSV con filas de ancho irregular y comillas sin cerrar.',
+  'Texto con doble codificación (UTF-8 leído como Windows-1252).',
+  'Base SQLite real con una página de datos sobrescrita.',
 ] as const;
+
+// ─── Texto estructurado y SQLite ─────────────────────────────────────────────
+const CLIENTES = [
+  { id: 1, nombre: 'Ana Ruiz', ciudad: 'Tecámac', saldo: 1250.5, activo: true },
+  { id: 2, nombre: 'Luis Peña', ciudad: 'Ecatepec', saldo: 0, activo: false },
+  { id: 3, nombre: 'Eva Soto', ciudad: 'Texcoco', saldo: 310, activo: true },
+  { id: 4, nombre: 'Sofía Mar', ciudad: 'Zumpango', saldo: 87.25, activo: true },
+];
+export function makeJsonVariants() {
+  const full = JSON.stringify({ origen: 'fixture sintético', exportado: '2026-10-31', clientes: CLIENTES }, null, 2);
+  const commented = full.replace('{\n', '{\n  // exportado por un sistema heredado\n').replace(/"activo": (true|false)\n/g, '"activo": $1,\n').replace('\n  ]', ',\n  ]');
+  const truncated = full.slice(0, full.indexOf('"Sofía Mar"') + 6);
+  return { full, commented, truncated };
+}
+export function makeXmlVariants() {
+  const rows = CLIENTES.map(c => `  <cliente id="${c.id}"><nombre>${c.nombre}</nombre><ciudad>${c.ciudad}</ciudad><saldo>${c.saldo}</saldo></cliente>`).join('\n');
+  const full = `<?xml version="1.0" encoding="UTF-8"?>\n<!-- fixture sintético -->\n<clientes exportado="2026-10-31">\n${rows}\n</clientes>\n`;
+  const amp = full.replace('<ciudad>Texcoco</ciudad>', '<ciudad>Texcoco & alrededores</ciudad>');
+  const truncated = full.slice(0, full.indexOf('<ciudad>Zumpango') + 12);
+  return { full, amp, truncated };
+}
+export const IRREGULAR_CSV = 'id;nombre;ciudad;saldo\r\n1;Ana Ruiz;Tecámac;1250.5\r\n2;Luis Peña;Ecatepec\r\n3;Eva Soto;Texcoco;310\n4;"Mar; Sofía";Zumpango;87.25;extra\n5;Raúl Gil;Tecámac;12\n6;Iris Paz;Ecatepec;45\n7;"Nota sin cerrar;Texcoco;9\n';
+export const MOJIBAKE_TXT = new TextDecoder('windows-1252').decode(enc.encode('Informe de inventario — Tecámac\nAño: 2026\nObservación: las piñatas de cartón llegaron dañadas.\nResponsable: Ing. López\n'));
+/** Sobrescribe la 2.ª hoja del árbol de `tabla` (la primera se deja sana). */
+export function damageSqlitePage(b: Uint8Array, tabla = 'ventas'): { bytes: Uint8Array; page: number } {
+  const r = readSqlite(b), t = r.tables.find(x => x.name === tabla)!, ps = r.pageSize, root = t.rootpage;
+  const p = b.subarray((root - 1) * ps, root * ps); const n = (p[3] << 8) | p[4], kids: number[] = [];
+  for (let k = 0; k < n; k++) { const c = (p[12 + k * 2] << 8) | p[13 + k * 2]; kids.push(((p[c] << 24) | (p[c + 1] << 16) | (p[c + 2] << 8) | p[c + 3]) >>> 0); }
+  const page = p[0] === 5 ? kids[Math.min(1, kids.length - 1)] : root, out = b.slice();
+  let s = 7; for (let i = (page - 1) * ps; i < page * ps; i++) { s = (s * 1103515245 + 12345) >>> 0; out[i] = s >>> 24; }
+  return { bytes: out, page };
+}
 
 export function buildDisk(): Uint8Array {
   const disk = new Uint8Array(128 * 1024); let s = 99; for (let i = 0; i < disk.length; i++) { s = (s * 1664525 + 1013904223) >>> 0; disk[i] = (s >>> 24) & 0x7f; if (i % 3 === 0) disk[i] = 0; }
@@ -101,7 +140,22 @@ export function buildFixtures(): Fixture[] {
     { name: 'inventario.xlsx', bytes: makeXlsx(), note: 'XLSX sintético', expectation: 'integro' },
     { name: 'sin-directorio.zip', bytes: docx.slice(0, docx.length - 90), note: 'ZIP sin EOCD', expectation: 'danado' },
     { name: 'disco-sintetico.img', bytes: buildDisk(), note: 'imagen de 128 KiB para carving', expectation: 'carving' },
+    ...buildStructuredFixtures(),
   ];
 }
 
 
+
+export function buildStructuredFixtures(): Fixture[] {
+  const j = makeJsonVariants(), x = makeXmlVariants(), db = sqliteFixture();
+  return [
+    { name: 'clientes-con-comentarios.json', bytes: enc.encode(j.commented), note: 'JSON con comentarios y comas finales', expectation: 'parcial' },
+    { name: 'clientes-truncado.json', bytes: enc.encode(j.truncated), note: 'JSON cortado a mitad del último registro', expectation: 'parcial' },
+    { name: 'clientes-ampersand.xml', bytes: enc.encode(x.amp), note: 'XML con «&» sin escapar', expectation: 'parcial' },
+    { name: 'clientes-truncado.xml', bytes: enc.encode(x.truncated), note: 'XML cortado con etiquetas abiertas', expectation: 'parcial' },
+    { name: 'clientes-irregular.csv', bytes: enc.encode(IRREGULAR_CSV), note: 'CSV con filas irregulares', expectation: 'parcial' },
+    { name: 'inventario-mojibake.txt', bytes: enc.encode(MOJIBAKE_TXT), note: 'texto con doble codificación', expectation: 'parcial' },
+    { name: 'tienda-integra.db', bytes: db, note: 'SQLite real íntegro', expectation: 'integro' },
+    { name: 'tienda-pagina-danada.db', bytes: damageSqlitePage(db).bytes, note: 'SQLite con una hoja de «ventas» sobrescrita', expectation: 'parcial' },
+  ];
+}
