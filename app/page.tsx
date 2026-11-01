@@ -12,6 +12,7 @@ import {exportInventoryCsv,exportInventoryJson,exportVerificationCsv,exportVerif
 import Engine,{ENGINE_SECTIONS,type EngineSection} from './engine';
 import type {Stage} from '../lib/experience';
 import HeroHologram from './experience/HeroHologram';
+import Quetzalito from './quetzalito/Quetzalito';
 import {DEMO_CSV_A,DEMO_CSV_B,DEMO_INV_A,DEMO_INV_B,DEMO_VERIFICATION} from '../lib/demo';
 
 const sections=['Dashboard','Nueva recuperación','Laboratorio','Verificación','Archivo'] as const;
@@ -513,6 +514,7 @@ export default function Home(){
 
    <footer><span>QUETZAL AFTERLIFE <b> / </b> THE DIGITAL RESURRECTION ENGINE</span><span>MOTOR 2.0 &nbsp; · &nbsp; 2026</span></footer>
   </main>
+  <Quetzalito section={section} onNavigate={s=>setSection(s as Section)} context={{hasData:!!invResult,isDemo,fileType,hasVerification:!!verResult}}/>
  </div>;
 }
 
