@@ -10,16 +10,20 @@ import './quetzalito.css';
 import {SECTION_IDS,UI,SECTIONS,type Lang} from '../../lib/quetzalito/kb';
 import {isSection,sectionIntro,suggestionsFor,answerEntry,type Answer,type Ctx} from '../../lib/quetzalito/engine';
 import {resolveAnswer} from '../../lib/quetzalito/ai';
-import {docSignal,effectiveLang,effectiveTheme,getPrefs,getServerPrefs,serverDocSignal,setPrefs,subscribeDoc,subscribePrefs,type ThemePref} from '../../lib/quetzalito/prefs';
+import {docSignal,effectiveTheme,getPrefs,getServerPrefs,serverDocSignal,setPrefs,subscribeDoc,subscribePrefs} from '../../lib/quetzalito/prefs';
+import {useUi,type ThemePref} from '../../lib/i18n';
+import {setLang,setTheme} from '../../lib/i18n/store';
 
-interface Msg{id:number;role:'user'|'bot';text:string;actions?:Answer['actions']}
-const THEME_ORDER:ThemePref[]=['auto','light','dark'];
-const THEME_ICON:Record<ThemePref,string>={auto:'◐',light:'☀',dark:'☾'};
+interface Msg{id:number;lang:Lang;role:'user'|'bot';text:string;actions?:Answer['actions'];kind?:Answer['kind']}
+const THEME_ORDER:ThemePref[]=['system','light','dark'];
+const THEME_ICON:Record<ThemePref,string>={system:'◐',light:'☀',dark:'☾'};
+const THEME_KEY:Record<ThemePref,'themeAuto'|'themeLight'|'themeDark'>={system:'themeAuto',light:'themeLight',dark:'themeDark'};
 
 export default function Quetzalito({section,context,onNavigate}:{section:string;context:Omit<Ctx,'section'>;onNavigate:(section:string)=>void}){
  const prefs=useSyncExternalStore(subscribePrefs,getPrefs,getServerPrefs);
  const sig=useSyncExternalStore(subscribeDoc,docSignal,serverDocSignal);
- const lang:Lang=effectiveLang(prefs,sig),theme=effectiveTheme(prefs,sig);
+ const ui=useUi();   // idioma y tema son los de TODA la plataforma
+ const lang:Lang=ui.lang,theme=effectiveTheme(sig);
  const [msgs,setMsgs]=useState<Msg[]>([]);
  const [text,setText]=useState('');
  const ctx:Ctx={section,...context};
@@ -37,8 +41,8 @@ export default function Quetzalito({section,context,onNavigate}:{section:string;
  },[open,min]);
  useEffect(()=>{const el=logRef.current;if(el)el.scrollTop=el.scrollHeight;},[msgs,open,min,lang]);
 
- const push=useCallback((m:Omit<Msg,'id'>)=>setMsgs(prev=>[...prev,{...m,id:idRef.current++}]),[]);
- const reply=useCallback((a:Answer)=>push({role:'bot',text:a.text,actions:a.actions}),[push]);
+ const push=useCallback((m:Omit<Msg,'id'|'lang'>)=>setMsgs(prev=>[...prev,{...m,lang,id:idRef.current++}]),[lang]);
+ const reply=useCallback((a:Answer)=>push({role:'bot',text:a.text,actions:a.actions,kind:a.kind}),[push]);
 
  const askText=useCallback(async(q:string)=>{
   const clean=q.trim().slice(0,300);if(!clean)return;
@@ -58,7 +62,8 @@ export default function Quetzalito({section,context,onNavigate}:{section:string;
 
  const sug=suggestionsFor(ctx,lang);
  const intro=sectionIntro(ctx,lang);
- const shown:Msg[]=msgs.length?msgs:[{id:0,role:'bot',text:intro.text}];
+ const mine=msgs.filter(m=>m.lang===lang);   // al cambiar de idioma no se mezclan respuestas de otro idioma
+ const shown:Msg[]=mine.length?mine:[{id:0,lang,role:'bot',text:intro.text,kind:'section'}];
  const title=isSection(section)?SECTIONS[section].title[lang]:section;
 
  const root=(children:React.ReactNode)=><div className="qz-root" data-qz-theme={theme} lang={lang}>{children}</div>;
@@ -74,10 +79,10 @@ export default function Quetzalito({section,context,onNavigate}:{section:string;
    <div className="qz-title"><h2 id={`${uid}-title`}>{t('name')}</h2><p>{min?`${t('inSection')}: ${title}`:t('role')}</p></div>
    <div className="qz-ctl">
     {!min&&<div className="qz-seg" role="group" aria-label={t('langLabel')}>
-     {(['es','en'] as Lang[]).map(l=><button key={l} type="button" aria-pressed={lang===l} aria-label={l==='es'?'Español':'English'} onClick={()=>setPrefs({lang:l})}>{l.toUpperCase()}</button>)}
+     {(['es','en'] as Lang[]).map(l=><button key={l} type="button" aria-pressed={lang===l} aria-label={l==='es'?'Español':'English'} onClick={()=>setLang(l)}>{l.toUpperCase()}</button>)}
     </div>}
-    {!min&&<button type="button" aria-label={`${t('themeLabel')}: ${t(prefs.theme==='auto'?'themeAuto':prefs.theme==='light'?'themeLight':'themeDark')}`} title={`${t('themeLabel')}: ${t(prefs.theme==='auto'?'themeAuto':prefs.theme==='light'?'themeLight':'themeDark')}`}
-     onClick={()=>setPrefs({theme:THEME_ORDER[(THEME_ORDER.indexOf(prefs.theme)+1)%3]})}><span aria-hidden="true">{THEME_ICON[prefs.theme]}</span></button>}
+    {!min&&<button type="button" aria-label={`${t('themeLabel')}: ${t(THEME_KEY[ui.theme])}`} title={`${t('themeLabel')}: ${t(THEME_KEY[ui.theme])}`}
+     onClick={()=>setTheme(THEME_ORDER[(THEME_ORDER.indexOf(ui.theme)+1)%3])}><span aria-hidden="true">{THEME_ICON[ui.theme]}</span></button>}
     <button type="button" aria-label={min?(lang==='es'?'Restaurar asistente':'Restore assistant'):t('minimize')} aria-expanded={!min} onClick={()=>setPrefs({min:!min})}><span aria-hidden="true">{min?'▢':'–'}</span></button>
     <button type="button" aria-label={t('close')} onClick={()=>setPrefs({open:false})}><span aria-hidden="true">✕</span></button>
    </div>
@@ -86,7 +91,7 @@ export default function Quetzalito({section,context,onNavigate}:{section:string;
    <div className="qz-ctx">{t('inSection')}: <b>{title}</b></div>
    <div className="qz-log" ref={logRef} role="log" aria-live="polite" aria-relevant="additions" tabIndex={0} aria-label={lang==='es'?'Conversación con Quetzalito':'Conversation with Quetzalito'}>
     {shown.map(m=><div key={m.id} className={`qz-msg ${m.role==='bot'?'qz-bot':'qz-user'}`}>
-     <span className="qz-who">{m.role==='bot'?t('name'):t('you')}</span>{m.text}
+     <span className="qz-who">{m.role==='bot'?`${t('name')} · ${m.kind==='ai'?t('aiTag'):t('guidedTag')}`:t('you')}</span>{m.text}
      {m.actions&&m.actions.length>0&&<div className="qz-acts">{m.actions.map(a=><button key={a.goto+a.label} type="button" onClick={()=>go(a.goto)}>{a.label} →</button>)}</div>}
     </div>)}
    </div>
@@ -98,7 +103,7 @@ export default function Quetzalito({section,context,onNavigate}:{section:string;
     <input id={`${uid}-in`} ref={inputRef} value={text} maxLength={300} onChange={e=>setText(e.target.value)} placeholder={t('placeholder')} autoComplete="off" enterKeyHint="send"/>
     <button type="submit" disabled={!text.trim()}>{t('send')}</button>
    </form>
-   <p className="qz-note">{t('note')}{msgs.length>0&&<> · <button type="button" style={{all:'unset',cursor:'pointer',textDecoration:'underline',color:'inherit'}} onClick={()=>setMsgs([])}>{t('clear')}</button></>}</p>
+   <p className="qz-note">{t('note')}{mine.length>0&&<> · <button type="button" style={{all:'unset',cursor:'pointer',textDecoration:'underline',color:'inherit'}} onClick={()=>setMsgs([])}>{t('clear')}</button></>}</p>
   </div>}
  </section>);
 }

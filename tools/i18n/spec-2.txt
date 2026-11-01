@@ -1,0 +1,451 @@
+@@@ app/page.tsx
+<<<
+const name=projectName.trim()||filename||'Proyecto sin nombre';
+===
+const name=projectName.trim()||filename||tr('Proyecto sin nombre');
+>>>
+@@@ app/engine.tsx
+<<<
+import {tr} from '../lib/i18n';
+===
+import {tr,tf,tm,nf} from '../lib/i18n';
+>>>
+<<<
+{SCENARIO_LABEL}{tr
+===
+{tm(SCENARIO_LABEL)}{tr
+>>>
+<<<
+{errors.map((e,i)=><p key={i} role="alert" className="error">{e}</p>)}
+===
+{errors.map((e,i)=><p key={i} role="alert" className="error">{tm(e)}</p>)}
+>>>
+<<<
+{SCENARIO_DAMAGE.map(d=><li key={d}>{d}</li>)}
+===
+{SCENARIO_DAMAGE.map(d=><li key={d}>{tm(d)}</li>)}
+>>>
+<<<
+{d.damaged?'con daños':'sin daños detectados'}
+===
+{d.damaged?tr('con daños'):tr('sin daños detectados')}
+>>>
+<<<
+{tr('soporte:')} {d.supportLevel}
+===
+{tr('soporte:')} {tr(d.supportLevel)}
+>>>
+<<<
+{e.size.toLocaleString('es-MX')}
+===
+{nf(e.size)}
+>>>
+<<<
+{e.signals.join('; ')}.{d.encodingBasis?` Codificación: ${d.encodingBasis}.`:''}
+===
+{e.signals.map(tm).join('; ')}.{d.encodingBasis?` ${tr('Codificación:')} ${tm(d.encodingBasis)}.`:''}
+>>>
+<<<
+<span key={k}>{k}: <b style={{color:'#c8d4dc'}}>{String(v)}</b></span>
+===
+<span key={k}>{tm(k)}: <b style={{color:'#c8d4dc'}}>{tm(String(v))}</b></span>
+>>>
+<<<
+{SEV_LABEL[f.severity]}</span> {f.message}
+===
+{tr(SEV_LABEL[f.severity])}</span> {tm(f.message)}
+>>>
+<<<
+{t.report.declared??'n/d'}
+===
+{t.report.declared??tr('n/d')}
+>>>
+<<<
+{r.provenance}</span>{r.deleted&&' · borrado'}
+===
+{tr(r.provenance)}</span>{r.deleted&&` · ${tr('borrado')}`}
+>>>
+<<<
+{r.issues.join('; ')}</td></tr>)}
+===
+{r.issues.map(tm).join('; ')}</td></tr>)}
+>>>
+<<<
+{u.reason}</p>)}
+===
+{tm(u.reason)}</p>)}
+>>>
+<<<
+{t.primaryKey.confidence}</span><br/><small style={{color:'#687784'}}>{t.primaryKey.evidence}</small>
+===
+{tr(t.primaryKey.confidence)}</span><br/><small style={{color:'#687784'}}>{tm(t.primaryKey.evidence)}</small>
+>>>
+<<<
+`${c.name}:${c.inferredType}`
+===
+`${c.name}:${tr(c.inferredType)}`
+>>>
+<<<
+inv-conf-${r.confidence}`}>{r.confidence}</span>
+===
+inv-conf-${r.confidence}`}>{tr(r.confidence)}</span>
+>>>
+<<<
+{r.evidence.map((e,i)=><li key={i}>{e}</li>)}
+===
+{r.evidence.map((e,i)=><li key={i}>{tm(e)}</li>)}
+>>>
+<<<
+{r.possiblyExplainedByLoss?' — coherente con registros perdidos por daño en '+r.parent.table+' (no probado)':''}
+===
+{r.possiblyExplainedByLoss?tf(' — coherente con registros perdidos por daño en {0} (no probado)',r.parent.table):''}
+>>>
+<<<
+⚠ [{i.table}] {i.message}
+===
+⚠ [{i.table}] {tm(i.message)}
+>>>
+<<<
+{version>1?` (deriva de v${version-1})`:''}
+===
+{version>1?tf(' (deriva de v{0})',version-1):''}
+>>>
+<<<
+{i.status}</span> {i.message}</p>
+===
+{tr(i.status)}</span> {tm(i.message)}</p>
+>>>
+<<<
+— {r.description} <small>
+===
+— {tm(r.description)} <small>
+>>>
+<<<
+${x.table} #${x.ref}: ${x.reason}${x.mergedInto
+===
+${x.table} #${x.ref}: ${tm(x.reason)}${x.mergedInto
+>>>
+<<<
+{aiMsg&&<p role="alert" className="error">{aiMsg}</p>}
+===
+{aiMsg&&<p role="alert" className="error">{tm(aiMsg)}</p>}
+>>>
+<<<
+aria-label={`Aprobar: ${p.title}`}
+===
+aria-label={tf('Aprobar: {0}',tm(p.title))}
+>>>
+<<<
+<span className="project-name">{p.title}</span></label><span className="dbf-field-type">{p.kind.replace('_',' ')}</span>
+===
+<span className="project-name">{tm(p.title)}</span></label><span className="dbf-field-type">{tr(p.kind.replace('_',' '))}</span>
+>>>
+<<<
+margin:'8px 0'}}>{p.explanation}</p>
+===
+margin:'8px 0'}}>{tm(p.explanation)}</p>
+>>>
+<<<
+{p.evidence.slice(0,6).map((e,i)=><li key={i}>{e}</li>)}
+===
+{p.evidence.slice(0,6).map((e,i)=><li key={i}>{tm(e)}</li>)}
+>>>
+<<<
+⚠ {app.notice}
+===
+⚠ {tm(app.notice)}
+>>>
+<<<
+{model.relations.length===0&&'Aprueba relaciones en AI Analyst para habilitar la navegación entre entidades.'}
+===
+{model.relations.length===0&&tr('Aprueba relaciones en AI Analyst para habilitar la navegación entre entidades.')}
+>>>
+<<<
+placeholder={`Buscar en ${ent.name}…`}
+===
+placeholder={tf('Buscar en {0}…',ent.name)}
+>>>
+<<<
+{r.lineage.provenance}</span>{!r.complete&&' · parcial'}
+===
+{tr(r.lineage.provenance)}</span>{!r.complete&&` · ${tr('parcial')}`}
+>>>
+<<<
+{entRows.length>50?' (mostrando 50)':''}
+===
+{entRows.length>50?tr(' (mostrando 50)'):''}
+>>>
+<<<
+{sel.lineage.issues.join('; ')}
+===
+{sel.lineage.issues.map(tm).join('; ')}
+>>>
+<<<
+role="status">{opMsg}</p>
+===
+role="status">{tm(opMsg)}</p>
+>>>
+<<<
+{app.crudRules.map(r=><li key={r}>{r}</li>)}
+===
+{app.crudRules.map(r=><li key={r}>{tm(r)}</li>)}
+>>>
+<<<
+<li key={i}>{l.op} {l.table} {l.key}</li>
+===
+<li key={i}>{tr(l.op)} {l.table} {l.key}</li>
+>>>
+<<<
+{dossierOk?'✓ Integridad verificada':'✗ El expediente no coincide con su hash'}
+===
+{dossierOk?tr('✓ Integridad verificada'):tr('✗ El expediente no coincide con su hash')}
+>>>
+<<<
+{s.step}</b> — {s.description}
+===
+{tr(s.step)}</b> — {tm(s.description)}
+>>>
+<<<
+{u.kind.replace('_',' ')}</span> {u.subject}: {u.detail}
+===
+{tr(u.kind.replace('_',' '))}</span> {u.subject}: {tm(u.detail)}
+>>>
+<<<
+aria-label={`Tabla ${t.name}`}
+===
+aria-label={tf('Tabla {0}',t.name)}
+>>>
+@@@ app/file-recovery.tsx
+<<<
+import {tr} from '../lib/i18n';
+===
+import {tr,tf,tm,nf} from '../lib/i18n';
+>>>
+<<<*
+{ig.txt}
+===
+{tr(ig.txt)}
+>>>
+<<<
+{r.label} {tr('· confianza')} {r.confidence}
+===
+{tm(r.label)} {tr('· confianza')} {tr(r.confidence)}
+>>>
+<<<
+<span key={k}>{k}: <b style={{color:'#c8d4dc'}}>{String(v)}</b></span>
+===
+<span key={k}>{tm(k)}: <b style={{color:'#c8d4dc'}}>{tm(String(v))}</b></span>
+>>>
+<<<
+{r.signals.join('; ')}.</p>
+===
+{r.signals.map(tm).join('; ')}.</p>
+>>>
+<<<
+{f.severity==='dano'?'daño':f.severity}</span> {f.message}
+===
+{tr(f.severity==='dano'?'daño':f.severity)}</span> {tm(f.message)}
+>>>
+<<<
+{d.start.toLocaleString('es-MX')} – {d.end.toLocaleString('es-MX')}
+===
+{nf(d.start)} – {nf(d.end)}
+>>>
+<<<
+<td>{d.reason}</td>
+===
+<td>{tm(d.reason)}</td>
+>>>
+<<<
+<tr key={i}><td>{it.name}{it.preview
+===
+<tr key={i}><td>{tm(it.name)}{it.preview
+>>>
+<<<
+<td>{it.size.toLocaleString('es-MX')}</td>
+===
+<td>{nf(it.size)}</td>
+>>>
+<<<
+{it.verified?'✓ verificado':'⚠ no verificado'}
+===
+{it.verified?tr('✓ verificado'):tr('⚠ no verificado')}
+>>>
+<<<
+<td style={{fontSize:'11px'}}>{it.basis}</td>
+===
+<td style={{fontSize:'11px'}}>{tm(it.basis)}</td>
+>>>
+<<<
+{r.repaired.name}»: {r.repaired.note}
+===
+{r.repaired.name}»: {tm(r.repaired.note)}
+>>>
+<<<
+{r.limitations.map((l,i)=><li key={i}>{l}</li>)}
+===
+{r.limitations.map((l,i)=><li key={i}>{tm(l)}</li>)}
+>>>
+<<<
+{k.aligned?'':' (no alineado)'}
+===
+{k.aligned?'':tr(' (no alineado)')}
+>>>
+<<<
+{k.offset.toLocaleString('es-MX')}
+===
+{nf(k.offset)}
+>>>
+<<<
+{k.length.toLocaleString('es-MX')}
+===
+{nf(k.length)}
+>>>
+<<<
+{k.endFound?'sí':'no'}
+===
+{k.endFound?tr('sí'):tr('no')}
+>>>
+<<<
+{c.notes.map((n,i)=><li key={i}>{n}</li>)}
+===
+{c.notes.map((n,i)=><li key={i}>{tm(n)}</li>)}
+>>>
+<<<
+{errors.map((e,i)=><p key={i} role="alert" className="error">{e}</p>)}
+===
+{errors.map((e,i)=><p key={i} role="alert" className="error">{tm(e)}</p>)}
+>>>
+<<<
+{FIXTURE_DAMAGE.map(d=><li key={d}>{d}</li>)}
+===
+{FIXTURE_DAMAGE.map(d=><li key={d}>{tm(d)}</li>)}
+>>>
+<<<
+onClick={()=>setTab(k)}>{l}</button>
+===
+onClick={()=>setTab(k)}>{tr(l)}</button>
+>>>
+<<<
+<td>{AREA_LABEL[c.area]}</td><td>{c.formato}</td><td><span className={`vstatus ${EST_CLS[c.estado]}`}>{ESTADO_LABEL[c.estado]}</span></td><td style={{fontSize:11}}>{c.soporta}</td><td style={{fontSize:11}}>{c.limitaciones}</td><td style={{fontSize:11}}>{c.riesgos}</td><td style={{fontSize:11}}>{c.dependencias}</td>
+===
+<td>{tm(AREA_LABEL[c.area])}</td><td>{tm(c.formato)}</td><td><span className={`vstatus ${EST_CLS[c.estado]}`}>{tm(ESTADO_LABEL[c.estado])}</span></td><td style={{fontSize:11}}>{tm(c.soporta)}</td><td style={{fontSize:11}}>{tm(c.limitaciones)}</td><td style={{fontSize:11}}>{tm(c.riesgos)}</td><td style={{fontSize:11}}>{tm(c.dependencias)}</td>
+>>>
+@@@ app/experience/ExperienceOverlay.tsx
+<<<
+import {tr} from '../../lib/i18n';
+===
+import {tr,tf,tm} from '../../lib/i18n';
+>>>
+<<<
+{f.damaged?`${f.findings} daño(s)`:'sin daños detectados'}
+===
+{f.damaged?tf('{0} daño(s)',f.findings):tr('sin daños detectados')}
+>>>
+<<<
+<td>{e.confidence}</td><td>{e.approved?'sí':'no'}</td>
+===
+<td>{tr(e.confidence)}</td><td>{e.approved?tr('sí'):tr('no')}</td>
+>>>
+<<<
+aria-label={`Íntegros ${(f.intact*100).toFixed(1)} %, recuperados ${(f.recovered*100).toFixed(1)} %, perdidos ${(f.lost*100).toFixed(1)} %`}
+===
+aria-label={tf('Íntegros {0} %, recuperados {1} %, perdidos {2} %',(f.intact*100).toFixed(1),(f.recovered*100).toFixed(1),(f.lost*100).toFixed(1))}
+>>>
+<<<
+<h2>{STAGE_LABEL[stage]}
+===
+<h2>{tr(STAGE_LABEL[stage])}
+>>>
+<<<
+{notice&&<p className="inv-warn-line" role="status">⚠ {notice}</p>}
+===
+{notice&&<p className="inv-warn-line" role="status">⚠ {tm(notice)}</p>}
+>>>
+<<<
+{scene.narrative[stage]}
+===
+{tm(scene.narrative[stage])}
+>>>
+<<<
+{STAGE_LABEL[s]}</button>
+===
+{tr(STAGE_LABEL[s])}</button>
+>>>
+<<<
+{paused?'▶ Reanudar':'❚❚ Pausar'}
+===
+{paused?tr('▶ Reanudar'):tr('❚❚ Pausar')}
+>>>
+<<<
+{tr('⟳ Girar:')} {autoRotate?'sí':'no'}
+===
+{tr('⟳ Girar:')} {autoRotate?tr('sí'):tr('no')}
+>>>
+<<<
+{tr('✥ Explorar:')} {explore?'sí':'no'}
+===
+{tr('✥ Explorar:')} {explore?tr('sí'):tr('no')}
+>>>
+<<<
+{force2d?'Ver 3D':'Ver 2D'}
+===
+{force2d?tr('Ver 3D'):tr('Ver 2D')}
+>>>
+<<<
+{use3d?`Calidad ${quality}${reduced?' · movimiento reducido':''}. Arrastra para girar${explore?', rueda para acercar':''}.`:'Modo 2D'}
+===
+{use3d?tf('Calidad {0}{1}. Arrastra para girar{2}.',tr(quality),reduced?tr(' · movimiento reducido'):'',explore?tr(', rueda para acercar'):''):tr('Modo 2D')}
+>>>
+<<<
+{!webgl?'Este dispositivo no ofrece WebGL: vista 2D equivalente.':'Vista 2D equivalente.'}
+===
+{!webgl?tr('Este dispositivo no ofrece WebGL: vista 2D equivalente.'):tr('Vista 2D equivalente.')}
+>>>
+@@@ app/experience/HoloScene.tsx
+<<<
+import {AURA_COUNT,Aura,QuetzalQ,makeShared} from './QuetzalQ';
+===
+import {AURA_COUNT,Aura,QuetzalQ,makeShared} from './QuetzalQ';
+import {tr,tf} from '../../lib/i18n';
+>>>
+<<<
+${f.damaged?` · ${f.findings} daño(s)`:''}
+===
+${f.damaged?` · ${tf('{0} daño(s)',f.findings)}`:''}
+>>>
+<<<
+${c.perCube>1?` (1 cubo = ${c.perCube})`:''}
+===
+${c.perCube>1?tf(' (1 cubo = {0})',c.perCube):''}
+>>>
+<<<
+`${n.rows} registros`
+===
+tf('{0} registros',n.rows)
+>>>
+<<<
+label('SISTEMA RECONSTRUIDO','relaciones inferidas y aprobadas')
+===
+label(tr('SISTEMA RECONSTRUIDO'),tr('relaciones inferidas y aprobadas'))
+>>>
+<<<
+label('EVIDENCIA ORIGINAL','archivos sin modificar · SHA-256')
+===
+label(tr('EVIDENCIA ORIGINAL'),tr('archivos sin modificar · SHA-256'))
+>>>
+<<<
+'registros leídos de los declarados'
+===
+tr('registros leídos de los declarados')
+>>>
+<<<
+`${scene.stats.lost} perdidos · ${scene.stats.unknownCells} celdas desconocidas`
+===
+tf('{0} perdidos · {1} celdas desconocidas',scene.stats.lost,scene.stats.unknownCells)
+>>>
+<<<
+`${scene.stats.integrityOk} ok · ${scene.stats.integrityWarn} avisos · ${scene.stats.integrityFail} fallas`
+===
+tf('{0} ok · {1} avisos · {2} fallas',scene.stats.integrityOk,scene.stats.integrityWarn,scene.stats.integrityFail)
+>>>

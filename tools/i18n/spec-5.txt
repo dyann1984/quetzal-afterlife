@@ -1,0 +1,39 @@
+@@@ lib/i18n/msgs.ts
+<<<
+function fill(en:string,m:RegExpExecArray){let n=0;return en.replace(/\{(\d*)\}/g,(_,d)=>String(m[d?Number(d):++n]??''));}
+===
+const SMALL=new Set(['alta','media','baja']);
+/** Los valores capturados se conservan; solo se traducen si son frases (o las palabras de confianza), nunca nombres ni cifras. */
+const part=(s:string)=>(s.length>=8&&s.includes(' ')||SMALL.has(s))?translateMessage(s):s;
+function fill(en:string,m:RegExpExecArray){let n=0;return en.replace(/\{(\d*)\}/g,(_,d)=>part(String(m[d?Number(d):++n]??'')));}
+>>>
+<<<
+ ['longitud de registro','record length'],['filas de datos','data rows'],['tamaño de página','page size'],
+===
+ ['longitud de registro','record length'],['filas de datos','data rows'],['tamaño de página','page size'],['última modificación','last modified'],['registros declarados','declared records'],['registros leídos','records read'],['registros íntegros','intact records'],['páginas declaradas','declared pages'],['codificación declarada','declared encoding'],['páginas','pages'],['alta','high'],['media','medium'],['baja','low'],
+>>>
+@@@ lib/i18n/msgs-filerec.ts
+<<<
+ ['Tabla xref y trailer reconstruidos
+===
+ ['; se descartaron {} bytes finales incompletos','; {} incomplete trailing byte(s) were discarded'],
+ ['Tabla xref y trailer reconstruidos
+>>>
+@@@ app/file-recovery.tsx
+<<<
+{it.preview.slice(0,160)}
+===
+{tm(it.preview.slice(0,160))}
+>>>
+@@@ lib/i18n/i18n.test.ts
+<<<
+const KEYS=new Set(['message',
+===
+const KEYS=new Set(['name','preview','message',
+>>>
+<<<
+ for(const o of [diagnoses,
+===
+ for(const d of Object.values(diagnoses))for(const [k,v] of Object.entries(d.metadata)){out.push(k);if(typeof v==='string')out.push(v);}
+ for(const o of [diagnoses,
+>>>

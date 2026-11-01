@@ -1,0 +1,68 @@
+@@@ app/quetzalito/Quetzalito.tsx
+<<<
+import {docSignal,effectiveLang,effectiveTheme,getPrefs,getServerPrefs,serverDocSignal,setPrefs,subscribeDoc,subscribePrefs,type ThemePref} from '../../lib/quetzalito/prefs';
+===
+import {docSignal,effectiveTheme,getPrefs,getServerPrefs,serverDocSignal,setPrefs,subscribeDoc,subscribePrefs} from '../../lib/quetzalito/prefs';
+import {useUi,type ThemePref} from '../../lib/i18n';
+import {setLang,setTheme} from '../../lib/i18n/store';
+>>>
+<<<
+interface Msg{id:number;role:'user'|'bot';text:string;actions?:Answer['actions']}
+const THEME_ORDER:ThemePref[]=['auto','light','dark'];
+const THEME_ICON:Record<ThemePref,string>={auto:'◐',light:'☀',dark:'☾'};
+===
+interface Msg{id:number;lang:Lang;role:'user'|'bot';text:string;actions?:Answer['actions']}
+const THEME_ORDER:ThemePref[]=['system','light','dark'];
+const THEME_ICON:Record<ThemePref,string>={system:'◐',light:'☀',dark:'☾'};
+const THEME_KEY:Record<ThemePref,'themeAuto'|'themeLight'|'themeDark'>={system:'themeAuto',light:'themeLight',dark:'themeDark'};
+>>>
+<<<
+ const lang:Lang=effectiveLang(prefs,sig),theme=effectiveTheme(prefs,sig);
+===
+ const ui=useUi();   // idioma y tema son los de TODA la plataforma
+ const lang:Lang=ui.lang,theme=effectiveTheme(sig);
+>>>
+<<<
+ const push=useCallback((m:Omit<Msg,'id'>)=>setMsgs(prev=>[...prev,{...m,id:idRef.current++}]),[]);
+ const reply=useCallback((a:Answer)=>push({role:'bot',text:a.text,actions:a.actions}),[push]);
+===
+ const push=useCallback((m:Omit<Msg,'id'|'lang'>)=>setMsgs(prev=>[...prev,{...m,lang,id:idRef.current++}]),[lang]);
+ const reply=useCallback((a:Answer)=>push({role:'bot',text:a.text,actions:a.actions}),[push]);
+>>>
+<<<
+ const shown:Msg[]=msgs.length?msgs:[{id:0,role:'bot',text:intro.text}];
+===
+ const mine=msgs.filter(m=>m.lang===lang);   // al cambiar de idioma no se mezclan respuestas de otro idioma
+ const shown:Msg[]=mine.length?mine:[{id:0,lang,role:'bot',text:intro.text}];
+>>>
+<<<
+onClick={()=>setPrefs({lang:l})}
+===
+onClick={()=>setLang(l)}
+>>>
+<<<
+    {!min&&<button type="button" aria-label={`${t('themeLabel')}: ${t(prefs.theme==='auto'?'themeAuto':prefs.theme==='light'?'themeLight':'themeDark')}`} title={`${t('themeLabel')}: ${t(prefs.theme==='auto'?'themeAuto':prefs.theme==='light'?'themeLight':'themeDark')}`}
+     onClick={()=>setPrefs({theme:THEME_ORDER[(THEME_ORDER.indexOf(prefs.theme)+1)%3]})}><span aria-hidden="true">{THEME_ICON[prefs.theme]}</span></button>}
+===
+    {!min&&<button type="button" aria-label={`${t('themeLabel')}: ${t(THEME_KEY[ui.theme])}`} title={`${t('themeLabel')}: ${t(THEME_KEY[ui.theme])}`}
+     onClick={()=>setTheme(THEME_ORDER[(THEME_ORDER.indexOf(ui.theme)+1)%3])}><span aria-hidden="true">{THEME_ICON[ui.theme]}</span></button>}
+>>>
+<<<
+{msgs.length>0&&<>
+===
+{mine.length>0&&<>
+>>>
+@@@ lib/i18n/index.ts
+<<<
+export const tr=t;
+===
+export const tr=t;
+/** Número con el separador del idioma activo. */
+export const nf=(n:number):string=>n.toLocaleString(curLang()==='en'?'en-US':'es-MX');
+>>>
+@@@ lib/quetzalito/kb.ts
+<<<
+ themeAuto:{es:'automático',en:'auto'},
+===
+ themeAuto:{es:'sistema',en:'system'},
+>>>

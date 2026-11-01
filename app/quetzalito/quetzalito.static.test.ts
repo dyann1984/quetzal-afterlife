@@ -10,8 +10,8 @@ describe('Quetzalito: estructura de accesibilidad, temas y movimiento (comprobac
   expect(tsx).toMatch(/aria-expanded/);expect(tsx).toMatch(/aria-pressed/);expect(tsx).toMatch(/htmlFor=/);
   expect(avatar).toMatch(/aria-hidden="true"/);
  });
- it('recuerda abierto/minimizado, idioma y tema, y valida las secciones antes de navegar',()=>{
-  expect(tsx).toMatch(/setPrefs\(\{open:true/);expect(tsx).toMatch(/setPrefs\(\{min:/);expect(tsx).toMatch(/setPrefs\(\{lang:/);expect(tsx).toMatch(/setPrefs\(\{theme:/);
+ it('recuerda abierto/minimizado, usa el idioma y tema globales y valida las secciones antes de navegar',()=>{
+  expect(tsx).toMatch(/setPrefs\(\{open:true/);expect(tsx).toMatch(/setPrefs\(\{min:/);expect(tsx).toMatch(/setLang\(l\)/);expect(tsx).toMatch(/setTheme\(/);expect(tsx).toMatch(/useUi\(\)/);
   expect(tsx).toMatch(/SECTION_IDS as readonly string\[\]\)\.includes\(goto\)/);
  });
  it('CSS: tema claro y oscuro, movimiento reducido y móvil',()=>{

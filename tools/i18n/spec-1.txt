@@ -1,0 +1,101 @@
+@@@ app/page.tsx
+<<<
+import {tr} from '../lib/i18n';
+===
+import {tr,tf,tm,nf,useUi} from '../lib/i18n';
+import UiControls from './UiControls';
+>>>
+<<<
+ const [section,setSection]=useState<Section>('Dashboard');
+===
+ useUi();   // idioma y tema globales: al cambiar se vuelve a pintar toda la página
+ const [section,setSection]=useState<Section>('Dashboard');
+>>>
+<<<
+{CONF[m.confidence]}
+===
+{tr(CONF[m.confidence])}
+>>>
+<<<
+{ROL[m.role]??m.role}
+===
+{tr(ROL[m.role]??m.role)}
+>>>
+<<<*
+{STATUS_LABEL[e.status]??e.status}
+===
+{tr(STATUS_LABEL[e.status]??e.status)}
+>>>
+<<<*
+</span>{s}</button>
+===
+</span>{tr(s)}</button>
+>>>
+<<<
+{section.toUpperCase()}
+===
+{tr(section).toUpperCase()}
+>>>
+<<<
+<h3>{c[1]}</h3><p>{c[2]}</p><small>{c[3]}</small>
+===
+<h3>{c[1]}</h3><p>{tr(c[2])}</p><small>{tr(c[3])}</small>
+>>>
+<<<
+{rec.deleted?'[borrado]':rec.corrupt?`[corrupto·${rec.corruptOffset}]`:'activo'}
+===
+{rec.deleted?tr('[borrado]'):rec.corrupt?tf('[corrupto·{0}]',rec.corruptOffset):tr('activo')}
+>>>
+<<<
+{invResult.totalActivos.toLocaleString('es-MX')}
+===
+{nf(invResult.totalActivos)}
+>>>
+<<<
+{invResult.totalBorrados.toLocaleString('es-MX')}
+===
+{nf(invResult.totalBorrados)}
+>>>
+<<<
+{error&&<p role="alert" className="error">{error}</p>}
+===
+{error&&<p role="alert" className="error">{tm(error)}</p>}
+>>>
+<<<
+{refError&&<p role="alert" className="error">{refError}</p>}
+===
+{refError&&<p role="alert" className="error">{tm(refError)}</p>}
+>>>
+<<<
+{savedMsg&&<p className={savedMsg.startsWith('✓')?'save-ok':'save-err'}>{savedMsg}</p>}
+===
+{savedMsg&&<p className={savedMsg.startsWith('✓')?'save-ok':'save-err'}>{tm(savedMsg)}</p>}
+>>>
+<<<
+<p>{invResult.warnings[0]}</p>
+===
+<p>{tm(invResult.warnings[0])}</p>
+>>>
+<<<*
+<p key={i} className="inv-warn-line">⚠ {w}</p>
+===
+<p key={i} className="inv-warn-line">⚠ {tm(w)}</p>
+>>>
+<<<
+<span className={`inv-source inv-source-${item.source}`}>{item.source}</span>
+===
+<span className={`inv-source inv-source-${item.source}`}>{tr(item.source)}</span>
+>>>
+<<<
+    <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
+     <button className="secondary" style={{padding:'6px 12px',fontSize:'10px',marginTop:'0'}} onClick={()=>setExpOpen(true)}>
+===
+    <div className="head-actions" style={{display:'flex',gap:'10px',alignItems:'center'}}>
+     <UiControls/>
+     <button className="secondary" style={{padding:'6px 12px',fontSize:'10px',marginTop:'0'}} onClick={()=>setExpOpen(true)}>
+>>>
+<<<
+ <Quetzalito section={section} onNavigate={s=>setSection(s as Section)} context={{hasData:!!invResult,isDemo,fileType,hasVerification:!!verResult}}/>
+===
+ <Quetzalito section={section} onNavigate={s=>setSection(s as Section)} context={{hasData:!!invResult,isDemo,fileType,hasVerification:!!verResult}}/>
+>>>

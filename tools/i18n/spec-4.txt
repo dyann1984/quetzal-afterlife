@@ -1,0 +1,76 @@
+@@@ lib/quetzalito/kb.ts
+<<<
+ role:{es:'Asistente de Quetzal Afterlife',en:'Quetzal Afterlife assistant'},
+===
+ role:{es:'Asistente guiado · no es IA generativa',en:'Guided assistant · not generative AI'},
+ guidedTag:{es:'respuesta guiada',en:'guided answer'},aiTag:{es:'IA generativa',en:'generative AI'},
+>>>
+<<<
+ note:{es:'Respuestas locales, sin IA externa ni envío de datos.',en:'Local answers: no external AI and no data sent.'},
+===
+ note:{es:'Respuestas guiadas por una base de conocimiento local: no es IA generativa ni se envían datos.',en:'Guided answers from a local knowledge base: not generative AI and no data is sent.'},
+>>>
+@@@ app/quetzalito/Quetzalito.tsx
+<<<
+interface Msg{id:number;lang:Lang;role:'user'|'bot';text:string;actions?:Answer['actions']}
+===
+interface Msg{id:number;lang:Lang;role:'user'|'bot';text:string;actions?:Answer['actions'];kind?:Answer['kind']}
+>>>
+<<<
+ const reply=useCallback((a:Answer)=>push({role:'bot',text:a.text,actions:a.actions}),[push]);
+===
+ const reply=useCallback((a:Answer)=>push({role:'bot',text:a.text,actions:a.actions,kind:a.kind}),[push]);
+>>>
+<<<
+ const shown:Msg[]=mine.length?mine:[{id:0,lang,role:'bot',text:intro.text}];
+===
+ const shown:Msg[]=mine.length?mine:[{id:0,lang,role:'bot',text:intro.text,kind:'section'}];
+>>>
+<<<
+<span className="qz-who">{m.role==='bot'?t('name'):t('you')}</span>
+===
+<span className="qz-who">{m.role==='bot'?`${t('name')} · ${m.kind==='ai'?t('aiTag'):t('guidedTag')}`:t('you')}</span>
+>>>
+@@@ lib/quetzalito/quetzalito.test.ts
+<<<
+import {parsePrefs,effectiveLang,effectiveTheme,DEFAULT_PREFS,getPrefs,setPrefs,_resetPrefsCache} from './prefs';
+===
+import {parsePrefs,effectiveTheme,DEFAULT_PREFS,getPrefs,setPrefs,_resetPrefsCache} from './prefs';
+>>>
+<<<
+  expect(entryById('language-theme')!.a.es).toMatch(/no tiene un selector global/i);   // no inventa un selector que no existe
+===
+  expect(entryById('language-theme')!.a.es).toMatch(/selector de idioma.*Sistema, Claro, Oscuro/is);   // describe los selectores reales
+  expect(entryById('language-theme')!.a.en).toMatch(/language selector.*System, Light, Dark/is);
+  expect(UI.role.es).toMatch(/no es IA generativa/i);expect(UI.note.en).toMatch(/not generative AI/i);   // distingue lo guiado de la IA generativa
+>>>
+<<<
+  expect(parsePrefs(JSON.stringify({open:true,min:true,lang:'en',theme:'light'}))).toEqual({open:true,min:true,lang:'en',theme:'light'});
+  expect(parsePrefs(JSON.stringify({open:'sí',lang:'fr',theme:'neón'}))).toEqual(DEFAULT_PREFS);
+===
+  expect(parsePrefs(JSON.stringify({open:true,min:true,lang:'en',theme:'light'}))).toEqual({open:true,min:true});   // idioma y tema ya no son suyos
+  expect(parsePrefs(JSON.stringify({open:'sí',min:1}))).toEqual(DEFAULT_PREFS);
+>>>
+<<<
+ it('idioma y tema efectivos: lo elegido manda; en automático se sigue a la página',()=>{
+  expect(effectiveLang(DEFAULT_PREFS,'es|')).toBe('es');expect(effectiveLang(DEFAULT_PREFS,'en-US|')).toBe('en');expect(effectiveLang({...DEFAULT_PREFS,lang:'es'},'en|')).toBe('es');
+  expect(effectiveTheme(DEFAULT_PREFS,'es|')).toBe('dark');expect(effectiveTheme(DEFAULT_PREFS,'es|light')).toBe('light');expect(effectiveTheme({...DEFAULT_PREFS,theme:'light'},'es|dark')).toBe('light');
+ });
+===
+ it('el tema sale del documento (ya resuelto por la plataforma); sin dato, oscuro',()=>{
+  expect(effectiveTheme('es|')).toBe('dark');expect(effectiveTheme('es|light')).toBe('light');expect(effectiveTheme('en|dark')).toBe('dark');
+ });
+>>>
+<<<
+  expect(()=>setPrefs({open:true,lang:'en'})).not.toThrow();expect(getPrefs().open).toBe(true);expect(getPrefs().lang).toBe('en');
+===
+  expect(()=>setPrefs({open:true,min:true})).not.toThrow();expect(getPrefs().open).toBe(true);expect(getPrefs().min).toBe(true);
+>>>
+@@@ app/quetzalito/quetzalito.static.test.ts
+<<<
+ it('recuerda abierto/minimizado, idioma y tema, y valida las secciones antes de navegar',()=>{
+  expect(tsx).toMatch(/setPrefs\(\{open:true/);expect(tsx).toMatch(/setPrefs\(\{min:/);expect(tsx).toMatch(/setPrefs\(\{lang:/);expect(tsx).toMatch(/setPrefs\(\{theme:/);
+===
+ it('recuerda abierto/minimizado, usa el idioma y tema globales y valida las secciones antes de navegar',()=>{
+  expect(tsx).toMatch(/setPrefs\(\{open:true/);expect(tsx).toMatch(/setPrefs\(\{min:/);expect(tsx).toMatch(/setLang\(l\)/);expect(tsx).toMatch(/setTheme\(/);expect(tsx).toMatch(/useUi\(\)/);
+>>>

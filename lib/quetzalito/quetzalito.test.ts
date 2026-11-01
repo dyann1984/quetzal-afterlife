@@ -2,7 +2,7 @@ import {describe,it,expect,vi} from 'vitest';
 import {ENTRIES,SECTIONS,SECTION_IDS,UI,GENERIC_SUGGEST,type Lang} from './kb';
 import {answer,answerEntry,nextStep,sectionIntro,suggestionsFor,entryById,normalize,type Ctx} from './engine';
 import {resolveAnswer,registerAssistantProvider,aiEnabled} from './ai';
-import {parsePrefs,effectiveLang,effectiveTheme,DEFAULT_PREFS,getPrefs,setPrefs,_resetPrefsCache} from './prefs';
+import {parsePrefs,effectiveTheme,DEFAULT_PREFS,getPrefs,setPrefs,_resetPrefsCache} from './prefs';
 
 const ctx=(section:string,o:Partial<Ctx>={}):Ctx=>({section,hasData:false,isDemo:false,fileType:null,hasVerification:false,...o});
 const LANGS:Lang[]=['es','en'];
@@ -39,7 +39,9 @@ describe('base de conocimiento',()=>{
   expect(lim.a.es).toMatch(/no promete recuperaci[oó]n universal/i);expect(lim.a.en).toMatch(/does not promise universal recovery/i);
   expect(lim.a.es).toMatch(/sint[eé]ticos/i);expect(lim.a.en).toMatch(/synthetic/i);
   expect(entryById('software-archaeology')!.a.es).toMatch(/no recupera c[oó]digo fuente/i);
-  expect(entryById('language-theme')!.a.es).toMatch(/no tiene un selector global/i);   // no inventa un selector que no existe
+  expect(entryById('language-theme')!.a.es).toMatch(/selector de idioma.*Sistema, Claro, Oscuro/is);   // describe los selectores reales
+  expect(entryById('language-theme')!.a.en).toMatch(/language selector.*System, Light, Dark/is);
+  expect(UI.role.es).toMatch(/no es IA generativa/i);expect(UI.note.en).toMatch(/not generative AI/i);   // distingue lo guiado de la IA generativa
   expect(entryById('privacy')!.a.es).toMatch(/no se env[ií]a nada/i);
  });
 });
@@ -143,16 +145,15 @@ describe('integración opcional con IA (desactivada por defecto)',()=>{
 describe('preferencias',()=>{
  it('parsea con tolerancia y valida cada campo',()=>{
   expect(parsePrefs(null)).toEqual(DEFAULT_PREFS);expect(parsePrefs('no es json')).toEqual(DEFAULT_PREFS);
-  expect(parsePrefs(JSON.stringify({open:true,min:true,lang:'en',theme:'light'}))).toEqual({open:true,min:true,lang:'en',theme:'light'});
-  expect(parsePrefs(JSON.stringify({open:'sí',lang:'fr',theme:'neón'}))).toEqual(DEFAULT_PREFS);
+  expect(parsePrefs(JSON.stringify({open:true,min:true,lang:'en',theme:'light'}))).toEqual({open:true,min:true});   // idioma y tema ya no son suyos
+  expect(parsePrefs(JSON.stringify({open:'sí',min:1}))).toEqual(DEFAULT_PREFS);
  });
- it('idioma y tema efectivos: lo elegido manda; en automático se sigue a la página',()=>{
-  expect(effectiveLang(DEFAULT_PREFS,'es|')).toBe('es');expect(effectiveLang(DEFAULT_PREFS,'en-US|')).toBe('en');expect(effectiveLang({...DEFAULT_PREFS,lang:'es'},'en|')).toBe('es');
-  expect(effectiveTheme(DEFAULT_PREFS,'es|')).toBe('dark');expect(effectiveTheme(DEFAULT_PREFS,'es|light')).toBe('light');expect(effectiveTheme({...DEFAULT_PREFS,theme:'light'},'es|dark')).toBe('light');
+ it('el tema sale del documento (ya resuelto por la plataforma); sin dato, oscuro',()=>{
+  expect(effectiveTheme('es|')).toBe('dark');expect(effectiveTheme('es|light')).toBe('light');expect(effectiveTheme('en|dark')).toBe('dark');
  });
  it('sin localStorage (entorno sin navegador o bloqueado) no lanza y conserva el valor en memoria',()=>{
   _resetPrefsCache();expect(getPrefs()).toEqual(DEFAULT_PREFS);
-  expect(()=>setPrefs({open:true,lang:'en'})).not.toThrow();expect(getPrefs().open).toBe(true);expect(getPrefs().lang).toBe('en');
+  expect(()=>setPrefs({open:true,min:true})).not.toThrow();expect(getPrefs().open).toBe(true);expect(getPrefs().min).toBe(true);
   _resetPrefsCache();
  });
 });

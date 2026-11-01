@@ -9,6 +9,7 @@ import {OrbitControls} from '@react-three/drei';
 import * as THREE from 'three';
 import type {Quality,SceneModel,Stage,Vec3} from '../../lib/experience';
 import {AURA_COUNT,Aura,QuetzalQ,makeShared} from './QuetzalQ';
+import {tr,tf} from '../../lib/i18n';
 
 const BLUE=new THREE.Color('#2cc7fa'),GOLD=new THREE.Color('#d3b273'),RED=new THREE.Color('#ff7a7a'),DIM=new THREE.Color('#3b566a');
 
@@ -41,7 +42,7 @@ function Files({scene,x=0,wire=false}:{scene:SceneModel;x?:number;wire?:boolean}
    <mesh>{geo}<meshBasicMaterial color={f.damaged?GOLD:BLUE} wireframe transparent opacity={wire?0.55:0.9}/></mesh>
    {f.damaged&&<mesh position={[0,0,0]} rotation={[Math.PI/2,0,0]}><torusGeometry args={[0.72,0.025,8,32]}/><meshBasicMaterial color={RED}/></mesh>}
    <mesh scale={0.5}>{geo}<meshBasicMaterial color={f.damaged?GOLD:BLUE} transparent opacity={0.25} blending={THREE.AdditiveBlending} depthWrite={false}/></mesh>
-   <group position={[0,-0.9,0]}>{label(f.label,`${f.format.toUpperCase()} · ${f.shortHash}…${f.damaged?` · ${f.findings} daño(s)`:''}`,f.damaged)}</group>
+   <group position={[0,-0.9,0]}>{label(f.label,`${f.format.toUpperCase()} · ${f.shortHash}…${f.damaged?` · ${tf('{0} daño(s)',f.findings)}`:''}`,f.damaged)}</group>
   </group>;})}</group>;
 }
 
@@ -53,7 +54,7 @@ function Columns({scene}:{scene:SceneModel}){
  },[scene.columns]);
  return <group>
   <Inst list={kinds.intacto} color={BLUE} opacity={0.9}/><Inst list={kinds.recuperado} color={GOLD} opacity={0.95}/><Inst list={kinds.perdido} color={RED} opacity={0.5} wire/>
-  {scene.columns.map(c=><group key={c.table} position={[c.pos[0],-2.4,c.pos[2]]}>{label(c.table,`${c.intact} · ${c.recovered} · ${c.lost}${c.perCube>1?` (1 cubo = ${c.perCube})`:''}`,c.lost>0)}</group>)}
+  {scene.columns.map(c=><group key={c.table} position={[c.pos[0],-2.4,c.pos[2]]}>{label(c.table,`${c.intact} · ${c.recovered} · ${c.lost}${c.perCube>1?tf(' (1 cubo = {0})',c.perCube):''}`,c.lost>0)}</group>)}
  </group>;
 }
 function Inst({list,color,opacity,wire=false}:{list:THREE.Matrix4[];color:THREE.Color;opacity:number;wire?:boolean}){
@@ -84,7 +85,7 @@ function Network({scene,x=0,s=1}:{scene:SceneModel;x?:number;s?:number}){
   {scene.graph.nodes.map(n=><group key={n.id} position={n.pos}>
    <mesh><sphereGeometry args={[0.18+0.05*Math.sqrt(n.rows),20,20]}/><meshBasicMaterial color={BLUE} transparent opacity={0.28} blending={THREE.AdditiveBlending} depthWrite={false}/></mesh>
    <mesh><sphereGeometry args={[0.18+0.05*Math.sqrt(n.rows),12,10]}/><meshBasicMaterial color={GOLD} wireframe/></mesh>
-   <group position={[0,0.75,0]}>{label(n.id,`${n.rows} registros`)}</group>
+   <group position={[0,0.75,0]}>{label(n.id,tf('{0} registros',n.rows))}</group>
   </group>)}
  </group>;
 }
@@ -96,8 +97,8 @@ function Studio({scene}:{scene:SceneModel}){
   <group position={[-3.4,0,0]} scale={0.6}><Network scene={scene}/></group>
   <group position={[3.4,0,0]} scale={0.6}><Files scene={scene} wire/></group>
   <Lines pairs={links} color={GOLD} opacity={0.35}/>
-  <group position={[-3.4,2.1,0]}>{label('SISTEMA RECONSTRUIDO','relaciones inferidas y aprobadas')}</group>
-  <group position={[3.4,2.1,0]}>{label('EVIDENCIA ORIGINAL','archivos sin modificar · SHA-256')}</group>
+  <group position={[-3.4,2.1,0]}>{label(tr('SISTEMA RECONSTRUIDO'),tr('relaciones inferidas y aprobadas'))}</group>
+  <group position={[3.4,2.1,0]}>{label(tr('EVIDENCIA ORIGINAL'),tr('archivos sin modificar · SHA-256'))}</group>
  </group>;
 }
 
@@ -108,8 +109,8 @@ function Vault({scene}:{scene:SceneModel}){
   {arcs.map(a=>{const start=acc;acc+=a.a*Math.PI*2;return a.a>0?<mesh key={a.k} rotation={[0,0,Math.PI/2-start-a.a*Math.PI*2]}><torusGeometry args={[1.7,0.09,12,96,a.a*Math.PI*2]}/><meshBasicMaterial color={a.c}/></mesh>:null;})}
   <mesh><torusGeometry args={[1.7,0.012,6,96]}/><meshBasicMaterial color={DIM}/></mesh>
   {scene.files.map((fl,i)=>{const ang=i/Math.max(scene.files.length,1)*Math.PI*2;return <mesh key={fl.id} position={[Math.cos(ang)*2.4,Math.sin(ang)*2.4,0]} rotation={[0.5,0.5,0]}><boxGeometry args={[0.22,0.22,0.22]}/><meshBasicMaterial color={fl.damaged?GOLD:BLUE} wireframe/></mesh>;})}
-  <group>{label(`${scene.stats.intact+scene.stats.recovered}/${scene.stats.declared}`,'registros leídos de los declarados')}</group>
-  <group position={[0,-0.55,0]}>{label(`${scene.stats.lost} perdidos · ${scene.stats.unknownCells} celdas desconocidas`,`${scene.stats.integrityOk} ok · ${scene.stats.integrityWarn} avisos · ${scene.stats.integrityFail} fallas`,scene.stats.lost>0)}</group>
+  <group>{label(`${scene.stats.intact+scene.stats.recovered}/${scene.stats.declared}`,tr('registros leídos de los declarados'))}</group>
+  <group position={[0,-0.55,0]}>{label(tf('{0} perdidos · {1} celdas desconocidas',scene.stats.lost,scene.stats.unknownCells),tf('{0} ok · {1} avisos · {2} fallas',scene.stats.integrityOk,scene.stats.integrityWarn,scene.stats.integrityFail),scene.stats.lost>0)}</group>
  </group>;
 }
 

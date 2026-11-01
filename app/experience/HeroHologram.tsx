@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import {Component,useCallback,useEffect,useRef,useState,useSyncExternalStore,type ReactNode} from 'react';
 import {pickQuality,type Quality} from '../../lib/experience';
 import {sceneStore} from '../../lib/sceneStore';
+import {tr} from '../../lib/i18n';
 
 const HeroCanvas=dynamic(()=>import('./HeroCanvas'),{ssr:false});
 const EMBLEM={intact:1,recovered:0,lost:0};
@@ -58,20 +59,20 @@ export default function HeroHologram({onOpen}:{onOpen:()=>void}){
  const s=scene?.stats;
  return <div className="hero-holo" ref={box} data-ready={ready?'1':'0'}>
   {/* Logotipo oficial: póster mientras carga y fallback si no hay WebGL */}
-  <img className="hero-poster" src="/quetzal-logo.png" alt="Logo oficial de Quetzal Afterlife" aria-hidden={ready}/>
-  {use3d&&caps&&<div className="hero-canvas" role="img" aria-label="Quetzal holográfico tridimensional. Arrastra para girarlo.">
+  <img className="hero-poster" src="/quetzal-logo.png" alt={tr('Logo oficial de Quetzal Afterlife')} aria-hidden={ready}/>
+  {use3d&&caps&&<div className="hero-canvas" role="img" aria-label={tr('Quetzal holográfico tridimensional. Arrastra para girarlo.')}>
    <Boundary onError={onLost}><HeroCanvas fractions={fr} hasData={hasData} quality={caps.quality} active={inView&&!caps.reduced} reduced={caps.reduced} interactive={caps.interactive} onFirstFrame={()=>setReady(true)} onLost={onLost}/></Boundary>
   </div>}
-  {ready&&<img className="hero-badge" src="/quetzal-logo.png" alt="Logo oficial de Quetzal Afterlife"/>}
+  {ready&&<img className="hero-badge" src="/quetzal-logo.png" alt={tr('Logo oficial de Quetzal Afterlife')}/>}
   <div className="hero-overlay">
    <p className="hero-caption" aria-live="polite">
     {s&&scene
-     ?<>{scene.synthetic&&<span className="demo-badge">SINTÉTICO</span>} ESTADO REAL DEL MOTOR · {s.intact} íntegros · {s.recovered} recuperados con daño · <b style={{color:s.lost?'#ff9a9a':undefined}}>{s.lost} perdidos</b></>
-     :<>EMBLEMA · el holograma refleja datos reales cuando cargas evidencia</>}
+     ?<>{scene.synthetic&&<span className="demo-badge">{tr('SINTÉTICO')}</span>} {tr('ESTADO REAL DEL MOTOR ·')} {s.intact} {tr('íntegros ·')} {s.recovered} {tr('recuperados con daño ·')} <b style={{color:s.lost?'#ff9a9a':undefined}}>{s.lost} {tr('perdidos')}</b></>
+     :<>{tr('EMBLEMA · el holograma refleja datos reales cuando cargas evidencia')}</>}
    </p>
    <div className="hero-actions">
-    <button className="primary" style={{marginTop:0}} onClick={onOpen}>✦ Ver resurrección</button>
-    {ready&&caps?.interactive&&<span className="hero-hint">Arrastra para girar</span>}
+    <button className="primary" style={{marginTop:0}} onClick={onOpen}>{tr('✦ Ver resurrección')}</button>
+    {ready&&caps?.interactive&&<span className="hero-hint">{tr('Arrastra para girar')}</span>}
    </div>
   </div>
  </div>;
