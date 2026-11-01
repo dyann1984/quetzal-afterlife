@@ -3,11 +3,14 @@
  * File Recovery: recuperación de archivos (PNG, JPEG, PDF, ZIP/DOCX/XLSX, TXT), carving de imágenes de disco,
  * matriz de capacidades y diseño de Software Archaeology. Todo se procesa en el navegador, en solo lectura.
  */
-import {useState} from 'react';
-import {analyzeFile,carveImage,exportRecovered,reportJson,DEFAULT_LIMITS,type FileReport,type CarveReport} from '../lib/filerec';
+import {useEffect,useState,useSyncExternalStore} from 'react';
+import {carveImage,exportRecovered,reportJson,DEFAULT_LIMITS,type FileReport,type CarveReport} from '../lib/filerec';
 import {buildFixtures,FIXTURE_DAMAGE} from '../lib/filerec/fixtures';
 import {CAPACIDADES,AREA_LABEL,ESTADO_LABEL,resumen,type Estado} from '../lib/capabilities';
 import {tr,tm,nf} from '../lib/i18n';
+import {runResurrection,OUTCOME_LABEL} from '../lib/filerec/protocol';
+import {getSession,getServerSession,subscribeSession,loadHistory,upsertRun,finishRun,addCarves,addSource,setActive,setBusy,clearSession} from '../lib/filerec/session';
+import ResurrectionView from './resurrection';
 
 const INTEG:Record<string,{cls:string;txt:string}>={
  integro:{cls:'vstatus-ok',txt:'íntegro'},parcial:{cls:'vstatus-only',txt:'parcial'},danado:{cls:'vstatus-diff',txt:'dañado'},
@@ -57,22 +60,27 @@ function CarveCard({c,synthetic}:{c:CarveReport;synthetic:boolean}){
 
 export default function FileRecovery(){
  const [tab,setTab]=useState<'recuperar'|'matriz'|'arqueologia'>('recuperar');
- const [reports,setReports]=useState<Array<{r:FileReport;synthetic:boolean}>>([]);
- const [carves,setCarves]=useState<Array<{c:CarveReport;synthetic:boolean}>>([]);
+ // El estado vive en un almacén externo: sobrevive a los cambios de sección (antes se perdía al navegar).
+ const ses=useSyncExternalStore(subscribeSession,getSession,getServerSession);
  const [errors,setErrors]=useState<string[]>([]);
  const [asDisk,setAsDisk]=useState(false);
- const [busy,setBusy]=useState(false);
+ const [showDetail,setShowDetail]=useState(false);
+ const busy=ses.busy;
  const res=resumen();
+ useEffect(()=>{loadHistory();},[]);
+ const active=ses.runs.find(r=>r.id===ses.active)??ses.runs[0]??null;
 
  async function process(files:Array<{name:string;bytes:Uint8Array;disk?:boolean}>,synthetic:boolean){
-  setBusy(true);const errs:string[]=[];const rs:typeof reports=[],cs:typeof carves=[];
+  setBusy(true);const errs:string[]=[];const cs:typeof ses.carves=[];
   for(const f of files){
    try{
-    if(f.disk)cs.push({c:await carveImage(f.bytes,f.name),synthetic});
-    else rs.push({r:await analyzeFile(f.bytes,f.name),synthetic});
+    if(f.disk){cs.push({c:await carveImage(f.bytes,f.name),synthetic});continue;}
+    const id=`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+    addSource(id,f.bytes);setActive(id);
+    finishRun(await runResurrection(f.bytes,f.name,{id,synthetic,onStage:upsertRun}));
    }catch(e){errs.push(`${f.name}: ${e instanceof Error?e.message:String(e)}`);}
   }
-  setReports(p=>[...rs,...p]);setCarves(p=>[...cs,...p]);setErrors(errs);setBusy(false);
+  if(cs.length)addCarves(cs);setErrors(errs);setBusy(false);
  }
  async function onFiles(e:React.ChangeEvent<HTMLInputElement>){
   const list=[...(e.target.files??[])];e.target.value='';
@@ -86,10 +94,12 @@ export default function FileRecovery(){
   await process(ok,false);setErrors(p=>[...p,...errs]);
  }
  const loadFixtures=()=>process(buildFixtures().map(f=>({name:f.name,bytes:f.bytes,disk:f.expectation==='carving'})),true);
+ const reports=ses.runs.filter(r=>r.report).map(r=>({r:r.report!,synthetic:r.synthetic}));
+ const carves=ses.carves;
 
  return <div className="workspace">
   <span className="kicker">{tr('RECOVERY / ARCHIVOS Y SISTEMAS')}</span>
-  <h1>{tr('File Recovery')}<span className="gold">.</span></h1>
+  <h1>{tr('Resurrección de archivos')}<span className="gold">.</span></h1>
   <div className="exp-tabs" role="tablist" style={{margin:'10px 0 18px'}}>
    {([['recuperar','Recuperar archivos'],['matriz','Matriz de capacidades'],['arqueologia','Software Archaeology']] as const).map(([k,l])=><button key={k} role="tab" aria-selected={tab===k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{tr(l)}</button>)}
   </div>
@@ -97,20 +107,22 @@ export default function FileRecovery(){
   {tab==='recuperar'&&<>
    <p>{tr('Identifica el formato por')} <b>{tr('firma binaria')}</b>{tr(', diagnostica la integridad, extrae solo lo')} <b>{tr('verificable')}</b> {tr('(CRC-32, Adler-32, estructura), registra los rangos y sectores dañados y exporta de forma segura. No se ejecuta nada ni se modifica ningún original.')} <b>{tr('No se promete recuperación universal')}</b>{tr(': lo sobrescrito o ausente no existe.')}</p>
    <label className="drop" style={{maxWidth:740}}>
-    <span className="upload">↑</span><strong>{tr('Importar archivos (PNG, JPEG, PDF, ZIP/DOCX/XLSX, TXT…)')}</strong>
+    <span className="upload">↑</span><strong>{tr('Importar archivos dañados (JSON, XML, CSV, SQLite, PNG, JPEG, PDF, ZIP/DOCX/XLSX, TXT…)')}</strong>
     <span>{tr('hasta')} {kb(DEFAULT_LIMITS.maxFileBytes)} {tr('cada uno · el tipo se decide por contenido, no por extensión')}</span>
     <input type="file" multiple onChange={onFiles} aria-label={tr('Importar archivos para recuperar')}/>
    </label>
    <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'center',marginTop:12}}>
     <label style={{fontSize:12,color:'var(--c-94a0ac)'}}><input type="checkbox" checked={asDisk} onChange={e=>setAsDisk(e.target.checked)}/> {tr('Tratar el siguiente archivo como imagen de disco en bruto (buscar archivos incrustados)')}</label>
     <button className="primary" style={{marginTop:0}} onClick={loadFixtures} disabled={busy}>{tr('Cargar fixtures SINTÉTICOS')}</button>
-    {(reports.length>0||carves.length>0)&&<button className="secondary" style={{marginTop:0}} onClick={()=>{setReports([]);setCarves([]);setErrors([]);}}>{tr('Limpiar')}</button>}
+    {(reports.length>0||carves.length>0)&&<button className="secondary" style={{marginTop:0}} onClick={()=>{clearSession();setErrors([]);}}>{tr('Limpiar sesión')}</button>}
    </div>
    {errors.map((e,i)=><p key={i} role="alert" className="error">{tm(e)}</p>)}
    {busy&&<p role="status" className="muted" style={{display:'block'}}>{tr('Analizando…')}</p>}
-   {reports.length===0&&carves.length===0&&<div className="note"><span>◈</span><div><strong>{tr('Fixtures sintéticos.')}</strong><p>{tr('Archivos generados por código con daños controlados (no son datos reales):')}</p><ul style={{color:'var(--c-9c9d98)',fontSize:12,lineHeight:1.6}}>{FIXTURE_DAMAGE.map(d=><li key={d}>{tm(d)}</li>)}</ul></div></div>}
+   {ses.runs.length>0&&<div className="rz-runs" role="tablist" aria-label={tr('Archivos de esta sesión')}>{ses.runs.map(r=><button key={r.id} role="tab" aria-selected={active?.id===r.id} className={`rz-chip rz-o-${r.outcome}${active?.id===r.id?' active':''}`} onClick={()=>setActive(r.id)} title={tm(OUTCOME_LABEL[r.outcome])}><i aria-hidden="true"/>{r.name}</button>)}</div>}
+   {active&&<ResurrectionView run={active} source={ses.sources[active.id]}/>}
+   {reports.length===0&&carves.length===0&&!busy&&<div className="rz-empty"><div className="rz-empty-orb" aria-hidden="true"/><div><strong>{tr('Aún no hay archivos en esta sesión.')}</strong><p>{tr('Importa un archivo dañado o carga los fixtures sintéticos: verás las seis etapas del protocolo avanzar conforme el motor termina cada una.')}</p><ul style={{color:'var(--c-9c9d98)',fontSize:12,lineHeight:1.6}}>{FIXTURE_DAMAGE.map(d=><li key={d}>{tm(d)}</li>)}</ul></div></div>}
    {carves.map((c,i)=><CarveCard key={`c${i}`} c={c.c} synthetic={c.synthetic}/>)}
-   {reports.map((r,i)=><ReportCard key={`r${i}-${r.r.sha256}`} r={r.r} synthetic={r.synthetic}/>)}
+   {active?.report&&<details className="rz-detail" open={showDetail} onToggle={e=>setShowDetail((e.target as HTMLDetailsElement).open)}><summary>{tr('Informe técnico completo')}</summary><ReportCard r={active.report} synthetic={active.synthetic}/></details>}
   </>}
 
   {tab==='matriz'&&<>

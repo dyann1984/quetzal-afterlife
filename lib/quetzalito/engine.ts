@@ -5,7 +5,9 @@
  */
 import {ENTRIES,SECTIONS,SECTION_IDS,GENERIC_SUGGEST,UI,type Entry,type Lang,type SectionId} from './kb';
 
-export interface Ctx{section:string;hasData:boolean;isDemo:boolean;fileType:'csv'|'dbf'|null;hasVerification:boolean}
+export interface Ctx{section:string;hasData:boolean;isDemo:boolean;fileType:'csv'|'dbf'|null;hasVerification:boolean;
+ /** Resumen del último archivo resucitado (titular y siguiente paso salen de explainRun, es decir, del informe real). */
+ fileRun?:{headline:string;next:string}|null}
 export interface Suggestion{id:string;text:string}
 export interface ActionOut{label:string;goto:string}
 export interface Answer{text:string;actions:ActionOut[];follow:Suggestion[];kind:'kb'|'section'|'next'|'greeting'|'thanks'|'fallback'|'ai';entryId?:string}
@@ -70,7 +72,8 @@ export function nextStep(ctx:Ctx,lang:Lang):Answer{
    acts=s==='Archivo'?[]:[A(es?'Archivo':'Archive','Archivo')];
   }
  }else if(s==='File Recovery'){
-  t=es?'Importa archivos (PNG, JPEG, PDF, ZIP/DOCX/XLSX, TXT) o pulsa «Cargar fixtures SINTÉTICOS». Después revisa el informe de cada uno y exporta el informe JSON o el ZIP seguro.':'Import files (PNG, JPEG, PDF, ZIP/DOCX/XLSX, TXT) or press “Cargar fixtures SINTÉTICOS”. Then review each report and export the JSON report or the safe ZIP.';
+  if(ctx.fileRun)t=`${ctx.fileRun.headline} ${ctx.fileRun.next}`;
+  else t=es?'Importa un archivo dañado (JSON, XML, CSV, SQLite, PNG, JPEG, PDF, ZIP/DOCX/XLSX, TXT) o pulsa «Cargar fixtures SINTÉTICOS». Verás las seis etapas avanzar y, al final, el veredicto, el comparador y mi explicación.':'Import a damaged file (JSON, XML, CSV, SQLite, PNG, JPEG, PDF, ZIP/DOCX/XLSX, TXT) or press “Cargar fixtures SINTÉTICOS”. You will see the six stages advance and, at the end, the verdict, the comparator and my explanation.';
  }else{
   const n=NEXT[s];
   t=`${SECTIONS[s].howto[lang]}`;

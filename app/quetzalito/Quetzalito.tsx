@@ -49,11 +49,11 @@ export default function Quetzalito({section,context,onNavigate}:{section:string;
   push({role:'user',text:clean});setText('');
   reply(await resolveAnswer(clean,ctx,lang));
   // eslint-disable-next-line react-hooks/exhaustive-deps
- },[push,reply,lang,section,context.hasData,context.isDemo,context.fileType,context.hasVerification]);
+ },[push,reply,lang,section,context.hasData,context.isDemo,context.fileType,context.hasVerification,context.fileRun?.headline]);
  const askId=useCallback((id:string,label:string)=>{
   push({role:'user',text:label});reply(answerEntry(id,ctx,lang));
   // eslint-disable-next-line react-hooks/exhaustive-deps
- },[push,reply,lang,section,context.hasData,context.isDemo,context.fileType,context.hasVerification]);
+ },[push,reply,lang,section,context.hasData,context.isDemo,context.fileType,context.hasVerification,context.fileRun?.headline]);
  const go=useCallback((goto:string)=>{
   if(!(SECTION_IDS as readonly string[]).includes(goto))return;
   onNavigate(goto);
