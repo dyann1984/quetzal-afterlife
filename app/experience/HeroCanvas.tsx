@@ -17,10 +17,22 @@ function setSpherical(camera:{position:{set:(x:number,y:number,z:number)=>void};
 }
 const TARGET:[number,number,number]=[0.5,-0.2,0];
 
+/** Ajusta la distancia de cámara al ancho del contenedor: la composición (≈11,8 unidades de ancho) nunca se recorta, ni en móvil. */
+function fitDistance(camera:{position:{x:number;y:number;z:number;set:(x:number,y:number,z:number)=>void};lookAt:(x:number,y:number,z:number)=>void},width:number,height:number){
+ const aspect=width/Math.max(height,1),dist=Math.max(15.4,11.8/(2*Math.tan(18*Math.PI/180)*aspect));
+ const dx=camera.position.x-TARGET[0],dy=camera.position.y-TARGET[1],dz=camera.position.z-TARGET[2],len=Math.hypot(dx,dy,dz)||1;
+ camera.position.set(TARGET[0]+dx/len*dist,TARGET[1]+dy/len*dist,TARGET[2]+dz/len*dist);camera.lookAt(TARGET[0],TARGET[1],TARGET[2]);
+}
+function FitView(){
+ const size=useThree(s=>s.size),get=useThree(s=>s.get);
+ useEffect(()=>{fitDistance(get().camera,size.width,size.height);},[size.width,size.height,get]);
+ return null;
+}
+
 function ViewHook(){
  const get=useThree(s=>s.get);
  useEffect(()=>{
-  window.__quetzalSetView=(az,pol,dist=17.5)=>{window.__quetzalHold=true;const st=get();setSpherical(st.camera,TARGET,az,pol,dist);(st.controls as unknown as {update?:()=>void}|null)?.update?.();st.invalidate();};
+  window.__quetzalSetView=(az,pol,dist)=>{window.__quetzalHold=true;const st=get();const cur=Math.hypot(st.camera.position.x-TARGET[0],st.camera.position.y-TARGET[1],st.camera.position.z-TARGET[2]);setSpherical(st.camera,TARGET,az,pol,dist??cur);(st.controls as unknown as {update?:()=>void}|null)?.update?.();st.invalidate();};
   return()=>{delete window.__quetzalSetView;};
  },[get]);
  return null;
@@ -43,6 +55,13 @@ function Probe({quality,active}:{quality:Quality;active:boolean}){
  return null;
 }
 
+/** Con las placas 2.5D el giro se limita (paralaje de ~±15°) para no deformar la composición; con modelos 3D, ±51°. */
+function Controls(){
+ const {source}=useQuetzalParts();const az=source==='plates'?0.27:0.9,pol=source==='plates'?0.04:0.06;
+ return <OrbitControls makeDefault target={TARGET} enableDamping dampingFactor={0.08} enableZoom={false} enablePan={false}
+  minAzimuthAngle={-az} maxAzimuthAngle={az} minPolarAngle={Math.PI*(0.5-pol)} maxPolarAngle={Math.PI*(0.5+pol)}/>;
+}
+
 /** El póster (logo) se mantiene hasta que el modelo 3D está cargado: nunca se muestra un lienzo vacío. */
 function ReadyGate({onReady}:{onReady:()=>void}){
  const {source}=useQuetzalParts();
@@ -63,14 +82,13 @@ function ContextGuard({onLost}:{onLost:()=>void}){
 export default function HeroCanvas({fractions,hasData,quality,active,reduced,interactive,onFirstFrame,onLost}:{fractions:Fractions;hasData:boolean;quality:Quality;active:boolean;reduced:boolean;interactive:boolean;onFirstFrame:()=>void;onLost:()=>void}){
  const shared=useMemo(()=>makeShared(),[]);
  const dprMax=quality==='alta'?1.75:quality==='media'?1.4:1;
- return <Canvas dpr={[1,dprMax]} camera={{position:[0.5,-0.2,17.5],fov:36}} frameloop={active?'always':'demand'}
+ return <Canvas dpr={[1,dprMax]} camera={{position:[0.5,-0.2,15.4],fov:36}} frameloop={active?'always':'demand'}
    gl={{antialias:quality!=='baja',powerPreference:'high-performance',alpha:true}}
    onCreated={({gl,camera})=>{gl.setClearColor(0x000000,0);camera.lookAt(TARGET[0],TARGET[1],TARGET[2]);}}
    style={{width:'100%',height:'100%',touchAction:interactive?'none':'pan-y'}} aria-hidden="true">
   <QuetzalQ shared={shared} fractions={fractions} quality={quality} paused={!active} reduced={reduced} runId={0} hasData={hasData}/>
-  {interactive&&<OrbitControls makeDefault target={TARGET} enableDamping dampingFactor={0.08} enableZoom={false} enablePan={false}
-    minAzimuthAngle={-0.9} maxAzimuthAngle={0.9} minPolarAngle={Math.PI*0.44} maxPolarAngle={Math.PI*0.56}/>}
-  <ViewHook/><ReadyGate onReady={onFirstFrame}/><ContextGuard onLost={onLost}/><Probe quality={quality} active={active}/>
+  {interactive&&<Controls/>}
+  <ViewHook/><FitView/><ReadyGate onReady={onFirstFrame}/><ContextGuard onLost={onLost}/><Probe quality={quality} active={active}/>
  </Canvas>;
 }
 

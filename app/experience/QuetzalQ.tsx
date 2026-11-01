@@ -10,6 +10,7 @@ import {useFrame,useThree} from '@react-three/fiber';
 import * as THREE from 'three';
 import {buildQ,sampleSurface,HEAD_CENTER,type QPart} from './q-geometry';
 import {GLB_HEAD,getGlbState,loadGlb,subscribeGlb} from './q-glb';
+import {AMP,PLATE_CENTER,PLATE_HEAD,PLATE_SIZE,getPlatesState,loadPlates,subscribePlates,type PlatesData} from './q-plates';
 import {cloudFromSamples,tileStates,type Quality,type TileState} from '../../lib/experience';
 
 export const REVEAL_FROM=0,REVEAL_TO=9.6,REVEAL_DONE=99,REVEAL_SECONDS=3.8;
@@ -205,19 +206,83 @@ function glbMaterial(mode:4|5|6,shared:Shared){
   transparent:!opaque,depthWrite:opaque,side:THREE.DoubleSide,blending:opaque?THREE.NoBlending:THREE.AdditiveBlending});
 }
 
-/** Partes del emblema: el GLB cuando está cargado; la geometría procedural solo si el GLB falla. */
-let proc:ReturnType<typeof buildQ>|null=null;
-const getProc=()=>proc??(proc=buildQ());
-export function useQuetzalParts():{source:'glb'|'procedural'|null;parts:QPart[]|null}{
- const s=useSyncExternalStore(subscribeGlb,getGlbState,getGlbState);
- useEffect(()=>{loadGlb();},[]);
- return s.status==='ready'?{source:'glb',parts:s.parts}:s.status==='failed'?{source:'procedural',parts:getProc().parts}:{source:null,parts:null};
+// ─── Holograma 2.5D por capas (imagen oficial + relieve + paralaje): NO es un modelo 3D completo ───
+const PLVERT=`
+uniform sampler2D uDepth;uniform float uAmp,uBase,uBend,uTime;uniform vec2 uCenter;
+varying vec2 vUv;varying vec2 vM;varying float vSway;
+void main(){
+  vUv=uv;
+  vec3 d=texture2D(uDepth,uv).rgb;
+  #if LAYER==0
+    float depth=d.r;vSway=d.b;
+  #else
+    float depth=d.g;vSway=0.0;
+  #endif
+  vec3 p=position;
+  vM=p.xy+uCenter;
+  p.z+=uBase+(depth-0.5)*uAmp-uBend*p.x*p.x;
+  p.y+=vSway*sin(uTime*0.9+p.x*0.8+p.y*0.5)*0.05;     // balanceo suave de las plumas
+  p.x+=vSway*sin(uTime*0.7+p.y*0.9)*0.035;
+  gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);
+}`;
+const PLFRAG=`
+uniform sampler2D uTex;
+uniform float uTime,uReveal,uLost,uRec,uCell,uOpacity;
+varying vec2 vUv;varying vec2 vM;varying float vSway;
+float h2(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}
+void main(){
+  float dist=length(vM-vec2(${PLATE_HEAD[0].toFixed(2)},${PLATE_HEAD[1].toFixed(2)}));
+  if(dist>uReveal)discard;                                  // la materialización avanza desde la cabeza
+  float hh=h2(vec3(floor(vM/uCell),float(LAYER)));
+  if(hh<uLost)discard;                                      // registros perdidos: celdas disueltas
+  float rc=step(uLost,hh)*step(hh,uLost+uRec)*step(0.0001,uRec);   // sin recuperados con daño no hay oro (evita la celda con hash 0)              // recuperados con daño: tinte dorado
+  vec3 c=max(texture2D(uTex,vUv).rgb-0.03,0.0)*1.03;
+  float lum=max(c.r,max(c.g,c.b));
+  float tw=h2(vec3(floor(vUv*vec2(405.0,324.0)),7.0));
+  float spark=smoothstep(0.7,1.0,lum)*(0.55+0.45*sin(uTime*3.0+tw*40.0));            // destellos
+  float pulse=1.0+0.09*sin(uTime*1.2+vM.x*0.6-vM.y*0.4)*(0.4+vSway);                  // resplandor que respira
+  float s=fract((vM.x+vM.y*0.6)*0.07-uTime*0.05);
+  float band=exp(-pow((s-0.5)*9.0,2.0));                                               // barrido de luz
+  vec3 col=c*pulse+c*band*0.28+vec3(0.35,0.8,1.0)*spark*0.10;
+  col=mix(col,vec3(0.95,0.74,0.34)*(0.35+lum*1.1),rc*0.7*smoothstep(0.05,0.35,lum));   // recuperado con daño: oro
+  float ring=1.0-smoothstep(0.0,0.4,uReveal-dist);
+  col+=vec3(0.3,0.85,1.0)*ring*step(uReveal,20.0)*smoothstep(0.04,0.3,lum)*1.1;
+  vec3 o=col*uOpacity;gl_FragColor=vec4(o,clamp(max(o.r,max(o.g,o.b)),0.0,1.0));
+}`;
+function plateMaterial(layer:0|1,tex:THREE.Texture,depth:THREE.Texture,shared:Shared){
+ return new THREE.ShaderMaterial({defines:{LAYER:layer},vertexShader:PLVERT,fragmentShader:PLFRAG,
+  uniforms:{...(shared.u as unknown as {[k:string]:THREE.IUniform}),uTex:{value:tex},uDepth:{value:depth},uAmp:{value:layer===0?AMP.ave:AMP.resto},uBase:{value:layer===0?0:AMP.restoBase},
+   uBend:{value:AMP.bend},uCenter:{value:new THREE.Vector2(PLATE_CENTER[0],PLATE_CENTER[1])}},
+  transparent:true,depthWrite:false,depthTest:false,side:THREE.DoubleSide,
+  // suma de color sobre negro: el alfa acumula el brillo, así el negro de la imagen es transparente sobre el fondo de la página
+  blending:THREE.CustomBlending,blendEquation:THREE.AddEquation,blendSrc:THREE.OneFactor,blendDst:THREE.OneFactor,blendSrcAlpha:THREE.OneFactor,blendDstAlpha:THREE.OneFactor});
 }
 
+/** Fuente del emblema: placas 2.5D (imagen oficial); si fallan, el GLB; si éste también, la geometría procedural. */
+let proc:ReturnType<typeof buildQ>|null=null;
+const getProc=()=>proc??(proc=buildQ());
+export type QSource='plates'|'glb'|'procedural'|null;
+export function useQuetzalParts():{source:QSource;parts:QPart[]|null;plates:PlatesData|null}{
+ const g=useSyncExternalStore(subscribeGlb,getGlbState,getGlbState);
+ const p=useSyncExternalStore(subscribePlates,getPlatesState,getPlatesState);
+ useEffect(()=>{loadPlates();},[]);
+ useEffect(()=>{if(p.status==='failed')loadGlb();},[p.status]);
+ if(p.status==='ready')return {source:'plates',parts:null,plates:p.data};
+ if(p.status==='failed'){
+  if(g.status==='ready')return {source:'glb',parts:g.parts,plates:null};
+  if(g.status==='failed')return {source:'procedural',parts:getProc().parts,plates:null};
+ }
+ return {source:null,parts:null,plates:null};
+}
 export function Aura({shared,fractions,quality,opacity=1,reducedMotion,forceComplete=false}:{shared:Shared;fractions:Fractions;quality:Quality;opacity?:number;reducedMotion:boolean;forceComplete?:boolean}){
  const dpr=useThree(s=>s.viewport.dpr);
- const {parts}=useQuetzalParts();
- const cloud=useMemo(()=>{if(!parts)return null;const s=sampleSurface(parts,AURA_COUNT[quality]);return cloudFromSamples(s.points,s.gold,fractions);},[parts,quality,fractions]);
+ const {source,parts,plates}=useQuetzalParts();
+ const cloud=useMemo(()=>{
+  if(plates){const a=plates.aura,n=Math.min(AURA_COUNT[quality],a.gold.length),pts=new Float32Array(n*3),gd=new Uint8Array(n);
+   const step=a.gold.length/n;for(let i=0;i<n;i++){const k=Math.floor(i*step);pts[i*3]=a.points[k*3];pts[i*3+1]=a.points[k*3+1];pts[i*3+2]=a.points[k*3+2];}
+   return cloudFromSamples(pts,gd,fractions);}
+  if(!parts)return null;const s=sampleSurface(parts,AURA_COUNT[quality]);return cloudFromSamples(s.points,s.gold,fractions);
+ },[parts,plates,quality,fractions]);
  const geo=useMemo(()=>{
   if(!cloud)return null;
   const g=new THREE.BufferGeometry();
@@ -237,7 +302,7 @@ export function Aura({shared,fractions,quality,opacity=1,reducedMotion,forceComp
   writeAura(ref.current,{progress,time:reducedMotion?0:shared.u.uTime.value,pixelRatio:dpr,opacity});
  });
  if(!geo)return null;
- return <points geometry={geo} frustumCulled={false}>
+ return <points geometry={geo} frustumCulled={false} position={source==='procedural'?[0,0,0]:GLB_OFFSET}>
   <shaderMaterial ref={ref} vertexShader={PVERT} fragmentShader={PFRAG} transparent depthWrite={false} blending={THREE.AdditiveBlending} uniforms={uniforms}/>
  </points>;
 }
@@ -283,8 +348,20 @@ const decorative0=(hasData:boolean,f:Fractions):Fractions=>hasData?f:{intact:1,r
 // ─── Composición ─────────────────────────────────────────────────────────────
 /** Recentra el modelo del GLB (centro ~(-0.4,0.2)) sobre el encuadre y la plataforma del hero. */
 const GLB_OFFSET:[number,number,number]=[0.9,-0.1,0];
+/** Dos placas aditivas (resto: anillo, globo y datos; ave) con relieve, curvatura y balanceo. */
+function Plates({shared,plates,quality}:{shared:Shared;plates:PlatesData;quality:Quality}){
+ const sx=quality==='alta'?150:quality==='media'?100:60,sy=quality==='alta'?120:quality==='media'?80:48;
+ const geo=useMemo(()=>new THREE.PlaneGeometry(PLATE_SIZE[0],PLATE_SIZE[1],sx,sy),[sx,sy]);
+ const mats=useMemo(()=>[plateMaterial(0,plates.textures.ave,plates.textures.depth,shared),plateMaterial(1,plates.textures.resto,plates.textures.depth,shared)],[shared,plates]);
+ useEffect(()=>()=>{geo.dispose();mats.forEach(m=>m.dispose());},[geo,mats]);
+ return <group position={[PLATE_CENTER[0],PLATE_CENTER[1],0]}>
+  <mesh geometry={geo} material={mats[1]} renderOrder={1} frustumCulled={false}/>
+  <mesh geometry={geo} material={mats[0]} renderOrder={2} frustumCulled={false}/>
+ </group>;
+}
+
 export function QuetzalQ({shared,fractions,quality,paused,reduced,runId,hasData,motion=true}:{shared:Shared;fractions:Fractions;quality:Quality;paused:boolean;reduced:boolean;runId:number;hasData:boolean;motion?:boolean}){
- const {source,parts}=useQuetzalParts();
+ const {source,parts,plates}=useQuetzalParts();
  const mats=useMemo(()=>({0:holoMaterial(0,shared),1:holoMaterial(1,shared),2:holoMaterial(2,shared),3:holoMaterial(3,shared),4:glbMaterial(4,shared),5:glbMaterial(5,shared),6:glbMaterial(6,shared)}),[shared]);
  useEffect(()=>()=>{Object.values(mats).forEach(m=>m.dispose());},[mats]);
  useEffect(()=>{setFractions(shared,fractions);},[shared,fractions]);
@@ -297,20 +374,22 @@ export function QuetzalQ({shared,fractions,quality,paused,reduced,runId,hasData,
   tickShared(shared,c.t,revealAt(c.el,reduced));
   if(!motion||reduced||!root.current)return;
   // Giro suave y LIMITADO (±20°) para no perder nunca la composición de la Q
-  root.current.rotation.y=window.__quetzalHold?0:Math.sin(c.t*0.33)*0.35;
+  root.current.rotation.y=window.__quetzalHold?0:Math.sin(c.t*0.33)*(source==='plates'?0.09:0.35);   // placas 2.5D: giro mínimo
   root.current.position.y=Math.sin(c.t*0.8)*0.04;
   if(globe.current)globe.current.rotation.y=c.t*0.25;
  });
  const matFor=(k:QPart['kind'])=>k==='pluma'?mats[0]:k==='solido'?mats[1]:mats[2];
  return <>
   <group ref={root}>
+   {source==='plates'&&<group position={GLB_OFFSET}><Plates shared={shared} plates={plates!} quality={quality}/></group>}
    {source==='glb'&&<group position={GLB_OFFSET}>{parts!.map(p=>{
     if(p.kind==='globo'){const c=p.geometry.userData.center as [number,number,number];
      return <mesh key={p.id} ref={globe} geometry={p.geometry} position={c} frustumCulled={false} renderOrder={2}><meshBasicMaterial color="#2cc7fa" transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false}/></mesh>;}
     return <mesh key={p.id} geometry={p.geometry} material={p.kind==='pluma'?mats[4]:p.kind==='solido'?mats[5]:mats[6]} frustumCulled={false} renderOrder={p.kind==='solido'?1:p.kind==='anillo'?2:3}/>;})}</group>}
    {source==='procedural'&&parts!.map(p=>p.kind==='globo'
     ?<lineSegments key={p.id} ref={globe as React.Ref<THREE.LineSegments>} geometry={p.geometry} position={[1.4,-0.25,-0.8]} frustumCulled={false}><lineBasicMaterial color="#2cc7fa" transparent opacity={0.24} blending={THREE.AdditiveBlending} depthWrite={false}/></lineSegments>
-    :<group key={p.id}><mesh geometry={p.geometry} material={matFor(p.kind)} frustumCulled={false} renderOrder={p.kind==='anillo'?1:2}/>{(p.kind==='pluma'||p.kind==='solido')&&<mesh geometry={p.geometry} material={mats[3]} frustumCulled={false} renderOrder={3} scale={1.012}/>}</group>)}   <Aura shared={shared} fractions={fractions} quality={quality} reducedMotion={reduced}/>
+    :<group key={p.id}><mesh geometry={p.geometry} material={matFor(p.kind)} frustumCulled={false} renderOrder={p.kind==='anillo'?1:2}/>{(p.kind==='pluma'||p.kind==='solido')&&<mesh geometry={p.geometry} material={mats[3]} frustumCulled={false} renderOrder={3} scale={1.012}/>}</group>)}
+   <Aura shared={shared} fractions={fractions} quality={quality} reducedMotion={reduced}/>
    <DataTiles counts={decorative0(hasData,fractions)} paused={paused} reduced={reduced} decorative={!hasData}/>
   </group>
   <Pedestal/>

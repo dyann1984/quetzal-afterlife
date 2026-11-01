@@ -7,3 +7,6 @@ coverage/
 
 .vercel
 .env*
+
+# verificación local de las capas 2.5D (no se publica)
+public/hologram/composicion.png
