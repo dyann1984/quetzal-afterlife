@@ -101,3 +101,25 @@ Ejecutado: 242/242 pruebas (18 archivos; +55 sobre las 187 anteriores), tsc 0 er
 Nuevas: núcleo/inflate (10), analizadores + seguridad + carving (32), archivos reales (5), matriz de capacidades (8).
 Navegador (build de producción): sección File Recovery con 12 informes sintéticos + carving; logotipo real del proyecto (íntegro y truncado, reparado y verificado); «PNG» que es un ejecutable → marcado peligroso, no analizado; archivo de 9 MiB rechazado antes de leerlo; archivo vacío rechazado; móvil 375 px sin desbordamiento; regresión de las 12 secciones previas, holograma del Dashboard y experiencia de 6 etapas sin errores JS.
 No verificado: PDF, DOCX, XLSX, ZIP y DBF reales (no hay ninguno en el equipo; solo sintéticos); JPEG real solo estructural; sin decodificación de píxeles; sin sistemas de archivos; sin audio/video/ejecutables más allá de la firma.
+
+---
+
+## 2026-11-01 — Rama feat/kiroween-resurrection (desde feat/integracion-final)
+
+Entorno: Linux, Node v22.23.4, npm, Chrome del sistema para E2E. Hecho con Claude (no con Kiro).
+
+| Comprobación | Resultado | Evidencia |
+| --- | --- | --- |
+| `vitest run` | PASS | 349 pruebas en 25 archivos; 2 **omitidas** (JPEG real de Windows: el archivo no existe en Linux) |
+| `tsc --noEmit` | PASS | 0 errores |
+| `eslint .` | PASS con advertencias | 0 errores, 3 advertencias `<img>` preexistentes |
+| `next build` | PASS | ruta estática `/` |
+| E2E (`npm run test:e2e`) | PASS | 15/15 en Chrome sin interfaz: carga, seis etapas, veredictos, descarga reparada validada con JSON.parse, comparador, Dashboard con estadísticas reales, persistencia al cambiar de sección, fixtures (incl. SQLite dañado), ES→EN, tema claro, móvil 390 px sin desbordamiento, movimiento reducido, consola sin errores |
+| SQLite con bases reales | PASS | bases creadas con `node:sqlite` (rowid alias, enteros > 2^53, blobs, desbordamiento, página dañada, truncado, cabecera destruida) |
+| Fuzz | PASS | truncamientos JSON/XML; 150 SQLite con bytes alterados al azar; basura aleatoria en 4 formatos; anidamiento de 100 000 niveles |
+
+### No verificado / bloqueado
+- **Producción** (`quetzal-afterlife.vercel.app`): inaccesible desde este entorno; no se desplegó nada.
+- Safari y Firefox: no probados (solo Chrome).
+- Rendimiento del holograma 3D con los cambios: no medido (no se modificó el holograma).
+- Archivos dañados reales de usuarios: no hay; todo lo demostrado usa fixtures sintéticos o bases generadas.

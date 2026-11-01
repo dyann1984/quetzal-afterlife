@@ -231,3 +231,31 @@ describe('mensajes en inglés', () => {
     expect(translateMessage('Error XML en línea 1, columna 8: </b> no corresponde a <a>.')).toBe('XML error at line 1, column 8: </b> does not match <a>.');
   });
 });
+
+// ─── Robustez: entradas hostiles o aleatorias nunca lanzan ni se cuelgan ─────────────────────────
+import { sqliteFixture } from './sqlite-fixture';
+describe('fuzz de robustez', () => {
+  const rng = (seed: number) => () => { seed = (seed * 1103515245 + 12345) >>> 0; return seed / 2 ** 32; };
+  it('SQLite con bytes alterados al azar: termina sin excepción y sin filas incoherentes', () => {
+    const base = sqliteFixture(), R = rng(42), t0 = Date.now();
+    for (let n = 0; n < 150; n++) {
+      const b = base.slice(); const hits = 1 + Math.floor(R() * 40);
+      for (let k = 0; k < hits; k++) b[Math.floor(R() * b.length)] = Math.floor(R() * 256);
+      const r = readSqlite(b);
+      for (const t of r.tables) for (const row of t.rows) expect(Array.isArray(row)).toBe(true);
+    }
+    expect(Date.now() - t0).toBeLessThan(15000);
+  });
+  it('JSON, XML, CSV y texto con basura aleatoria: siempre un informe', async () => {
+    const R = rng(7);
+    for (let n = 0; n < 60; n++) {
+      const b = Uint8Array.from({ length: 50 + Math.floor(R() * 400) }, () => (R() < 0.7 ? 32 + Math.floor(R() * 95) : Math.floor(R() * 256)));
+      for (const name of ['x.json', 'x.xml', 'x.csv', 'x.txt']) { const r = await analyzeFile(b, name); expect(r.integrity).toBeTruthy(); }
+    }
+  });
+  it('anidamiento extremo no desborda la pila', async () => {
+    const deep = '['.repeat(100000), x = '<a>'.repeat(5000);
+    expect((await analyzeFile(enc.encode(deep), 'd.json')).findings.some(f => /profundidad/.test(f.message))).toBe(true);
+    expect((await analyzeFile(enc.encode(x), 'd.xml')).findings.some(f => /profundidad/.test(f.message))).toBe(true);
+  });
+});
