@@ -1,25 +1,29 @@
-﻿# Quetzalito — asistente de la plataforma (fase 1, 100 % local)
+# Quetzalito — asistente de la plataforma (100 % local, integrado)
 
-Rama eat/quetzalito-chatbot (base: eat/universal-recovery). No toca los motores de recuperación, el holograma ni el logotipo; en pp/page.tsx solo añade un import y una línea que monta el componente.
+Integrado en la rama `feat/integracion-final` junto con el holograma 2.5D y la internacionalización (ES/EN) y los temas (Claro/Oscuro/Sistema) globales. No toca los motores de recuperación ni el logotipo; el holograma principal no se rediseñó.
 
 ## Qué es
 Un asistente flotante bilingüe (ES/EN) con la imagen de un mini quetzal holográfico (azul eléctrico, cian y detalles dorados) dentro de un micro-escenario oscuro, de modo que se ve igual en tema claro y oscuro. Responde con una **base de conocimiento local revisada**: sin IA externa, sin red, sin costo y sin enviar datos.
 
+### Respuestas guiadas vs. inteligencia artificial generativa
+Quetzalito **no es IA generativa**. Cada respuesta lleva la etiqueta «RESPUESTA GUIADA» (o «GUIDED ANSWER»): es un texto escrito y revisado de la base de conocimiento, elegido por coincidencia de palabras clave. La interfaz `lib/quetzalito/ai.ts` para una IA futura sigue **desactivada**; si algún día se activara, esas respuestas se mostrarían con una etiqueta distinta y visible. No se usa ninguna API de pago.
+
 ## Comportamiento
-- Botón flotante discreto (abajo a la derecha); al pulsarlo abre el chat (en móvil, una hoja inferior). Se puede **minimizar** (barra compacta) y **cerrar**; **recuerda** abierto/cerrado, minimizado, idioma y tema en localStorage (clave quetzalito:v1).
+- Botón flotante discreto (abajo a la derecha); al pulsarlo abre el chat (en móvil, una hoja inferior). Se puede **minimizar** (barra compacta) y **cerrar**; **recuerda** solo abierto/cerrado y minimizado en localStorage (clave `quetzalito:v1`).
+- **Idioma y tema globales**: Quetzalito ya no tiene preferencias propias. Usa el idioma y el tema de la plataforma (`quetzal:ui:v1`). Sus botones ES/EN y de tema cambian **toda la plataforma**, y los selectores de la cabecera cambian a Quetzalito. Los mensajes del chat se etiquetan con su idioma; al cambiarlo se ocultan los del otro idioma.
 - **Detecta la sección actual** (las 13) y adapta el saludo, las preguntas sugeridas y la respuesta a «¿qué hago ahora?» según lo cargado (datos, demo, verificación).
 - Las respuestas pueden incluir botones «Ir a …» que cambian de sección; en móvil el chat se minimiza para no tapar el contenido.
-- **Idioma**: el de la página (<html lang>) si no se elige; el botón ES/EN lo fija y se recuerda. **Tema**: auto / claro / oscuro (botón ◐ ☀ ☾). La plataforma hoy es solo español y oscura y no tiene selector global; el asistente lo dice y no inventa uno (ver FAQ language-theme).
-- **Accesibilidad**: ole="dialog", ole="log" con ria-live, etiquetas, foco al campo al abrir y de vuelta al botón al cerrar, Esc cierra, botones con área táctil ≥ 40 px en móvil y anillo de foco visible; con «reducir movimiento» se anulan las animaciones.
+- **Accesibilidad**: `role="dialog"`, `role="log"` con `aria-live`, etiquetas, foco al campo al abrir y de vuelta al botón al cerrar, Esc cierra, botones con área táctil ≥ 40 px en móvil y anillo de foco visible; con «reducir movimiento» se anulan las animaciones.
 
 ## Arquitectura
 | Archivo | Papel |
 |---|---|
-| lib/quetzalito/kb.ts | Base de conocimiento (preguntas, respuestas, palabras clave ES/EN, secciones, textos de la interfaz) |
-| lib/quetzalito/engine.ts | Motor puro: normalización, puntuación por palabras clave con prioridad por sección, «qué hago ahora» contextual, sugerencias |
-| lib/quetzalito/prefs.ts | Preferencias persistentes + señales de la página (idioma/tema) para useSyncExternalStore |
-| lib/quetzalito/ai.ts | Interfaz **opcional y desactivada** para una IA futura |
-| pp/quetzalito/ | Quetzalito.tsx (chat), Avatar.tsx (SVG), quetzalito.css (temas, móvil, movimiento reducido) |
+| `lib/quetzalito/kb.ts` | Base de conocimiento (preguntas, respuestas, palabras clave ES/EN, secciones, textos de la interfaz) |
+| `lib/quetzalito/engine.ts` | Motor puro: normalización, puntuación por palabras clave con prioridad por sección, «qué hago ahora» contextual, sugerencias |
+| `lib/quetzalito/prefs.ts` | Preferencias persistentes (abierto/minimizado) |
+| `lib/i18n/` | Idioma y tema globales que Quetzalito comparte con la plataforma |
+| `lib/quetzalito/ai.ts` | Interfaz **opcional y desactivada** para una IA futura |
+| `app/quetzalito/` | `Quetzalito.tsx` (chat), `Avatar.tsx` (SVG), `quetzalito.css` (temas, móvil, movimiento reducido) |
 
 ## Preguntas frecuentes implementadas (41)
 | id | Español | English |
@@ -67,39 +71,38 @@ Un asistente flotante bilingüe (ES/EN) con la imagen de un mini quetzal hologr�
 | `software-archaeology` | ¿Qué es Software Archaeology? | What is Software Archaeology? |
 
 ## Sugerencias por sección (ids de las FAQ anteriores)
-Además de estas, siempre se ofrecen ecovery-vs-reconstruction, language-theme y limitations.
+Además de estas, siempre se ofrecen `recovery-vs-reconstruction`, `language-theme` y `limitations`.
 
 | Sección | Preguntas sugeridas |
 |---|---|
-| Dashboard | ``what-is``,``demo-quick``,``hologram``,``sections-overview`` |
-| Nueva recuperación | ``upload-file``,``formats``,``file-limits``,``originals-safe`` |
-| Laboratorio | ``lab-fields``,``deleted-records``,``export``,``synthetic`` |
-| Verificación | ``verification-how``,``export``,``synthetic``,``uncertainty`` |
-| Archivo | ``save-project``,``reopen-delete``,``export``,``privacy`` |
-| Discovery | ``discovery-what``,``upload-file``,``synthetic``,``originals-safe`` |
-| Recovery | ``recovery-what``,``uncertainty``,``recovery-vs-reconstruction``,``limitations`` |
-| Schema Intelligence | ``schema-what``,``uncertainty``,``recovery-vs-reconstruction`` |
-| Reconstruction | ``reconstruction-what``,``recovery-vs-reconstruction``,``uncertainty`` |
-| AI Analyst | ``analyst-what``,``ai-privacy``,``uncertainty`` |
-| Resurrection Studio | ``studio-what``,``studio-crud``,``export`` |
-| Evidence Vault | ``vault-what``,``vault-integrity``,``export`` |
-| File Recovery | ``filerec-what``,``formats``,``carving``,``matrix`` |
+| Dashboard | `what-is`, `demo-quick`, `hologram`, `sections-overview` |
+| Nueva recuperación | `upload-file`, `formats`, `file-limits`, `originals-safe` |
+| Laboratorio | `lab-fields`, `deleted-records`, `export`, `synthetic` |
+| Verificación | `verification-how`, `export`, `synthetic`, `uncertainty` |
+| Archivo | `save-project`, `reopen-delete`, `export`, `privacy` |
+| Discovery | `discovery-what`, `upload-file`, `synthetic`, `originals-safe` |
+| Recovery | `recovery-what`, `uncertainty`, `recovery-vs-reconstruction`, `limitations` |
+| Schema Intelligence | `schema-what`, `uncertainty`, `recovery-vs-reconstruction` |
+| Reconstruction | `reconstruction-what`, `recovery-vs-reconstruction`, `uncertainty` |
+| AI Analyst | `analyst-what`, `ai-privacy`, `uncertainty` |
+| Resurrection Studio | `studio-what`, `studio-crud`, `export` |
+| Evidence Vault | `vault-what`, `vault-integrity`, `export` |
+| File Recovery | `filerec-what`, `formats`, `carving`, `matrix` |
 
 ## Cómo escalarlo a una versión con IA (futura, opcional)
-1. **Hoy**: esolveAnswer() usa solo la base local. lib/quetzalito/ai.ts define AssistantProvider (enabled(), sk()) y egisterAssistantProvider(); sin proveedor registrado, nada cambia.
-2. **Cuándo se consulta**: solo si la base local no sabe responder (kind === 'fallback') y el proveedor está habilitado; si falla o devuelve 
-ull, se usa la respuesta local.
-3. **Qué se enviaría**: la pregunta y metadatos mínimos (sección, si hay datos, si es demo), **nunca** el contenido de los archivos. Requiere consentimiento explícito del usuario (igual que el AI Analyst), mostrado en la interfaz antes de activar.
-4. **Dónde vive la clave**: en un endpoint propio del servidor (por ejemplo /api/quetzalito), nunca en el navegador; con límite de tasa y registro. Ese endpoint debe fijarse a un modelo y a un presupuesto.
-5. **Cómo mejorarlo**: usar la propia base de conocimiento como contexto recuperado (RAG sobre kb.ts y docs/), pedir respuestas con cita de la entrada y rechazar lo que no esté respaldado, y añadir pruebas de regresión con preguntas reales de usuarios y jueces.
-6. **Interruptor**: variable de entorno en el servidor (desactivada por defecto) + preferencia del usuario; el chat mostraría «IA activada» de forma visible.
+1. **Hoy**: `resolveAnswer()` usa solo la base local. `lib/quetzalito/ai.ts` define `AssistantProvider` (`enabled()`, `ask()`) y `registerAssistantProvider()`; sin proveedor registrado, nada cambia.
+2. **Cuándo se consulta**: solo si la base local no sabe responder (`kind === 'fallback'`) y el proveedor está habilitado; si falla o devuelve `null`, se usa la respuesta local.
+3. **Qué se enviaría**: la pregunta y metadatos mínimos (sección, si hay datos, si es demo), **nunca** el contenido de los archivos. Requiere consentimiento explícito del usuario, mostrado en la interfaz antes de activar.
+4. **Dónde vive la clave**: en un endpoint propio del servidor (por ejemplo `/api/quetzalito`), nunca en el navegador; con límite de tasa y registro, fijado a un modelo y a un presupuesto.
+5. **Cómo mejorarlo**: usar la base de conocimiento como contexto recuperado, pedir respuestas con cita de la entrada y rechazar lo no respaldado, y añadir pruebas de regresión con preguntas reales.
+6. **Interruptor**: variable de entorno en el servidor (desactivada por defecto) + preferencia del usuario; el chat mostraría «IA generativa» de forma visible, distinta de «respuesta guiada».
 
 ## Pruebas
-- lib/quetzalito/quetzalito.test.ts (46): contenido completo en ES/EN para las 13 secciones y todas las FAQ, enlaces internos válidos, honestidad (límites declarados, sin selector de idioma/tema inventado), 30 consultas ES/EN encaminadas a la FAQ correcta, adaptación por sección y por estado de sesión, saludos y respuesta de reserva, IA desactivada/fallida/innecesaria, preferencias.
-- pp/quetzalito/quetzalito.static.test.ts (4): accesibilidad, persistencia, CSS de temas/movimiento reducido/móvil, sin red y sin importar motores ni holograma.
-- Navegador (build de producción local): abrir/cerrar/minimizar, persistencia tras recargar, Esc y retorno del foco, ES/EN, claro/oscuro, navegación desde el chat, móvil 375 px. Capturas en docs/capturas-quetzalito/.
+- `lib/quetzalito/quetzalito.test.ts`: contenido completo en ES/EN para las 13 secciones y las 41 FAQ, enlaces internos válidos, honestidad (límites declarados), consultas ES/EN encaminadas a la FAQ correcta, adaptación por sección y por estado de sesión, IA desactivada/fallida/innecesaria, preferencias.
+- `app/quetzalito/quetzalito.static.test.ts`: accesibilidad, persistencia, CSS de temas/movimiento reducido/móvil, sin red y sin importar motores ni holograma.
+- Navegador (build de producción local): abrir/cerrar/minimizar, persistencia, Esc y retorno del foco, ES/EN, claro/oscuro, navegación desde el chat, móvil 375 px.
 
 ## Límites
 - Las respuestas son las escritas en la base; una pregunta fuera de ella recibe sugerencias, no una invención.
 - La comprensión es por palabras clave (sin modelo de lenguaje): preguntas muy indirectas pueden no encontrar la FAQ.
-- No cambia el idioma ni el tema de la plataforma (no existen selectores globales); solo los suyos.
+- Los mensajes ya escritos en el chat no se retraducen al cambiar de idioma; se ocultan y reaparecen al volver.

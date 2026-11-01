@@ -1,0 +1,19 @@
+@@@ app/engine.tsx
+<<<
+{tr('identificación:')} {e.confidence}
+===
+{tr('identificación:')} {tr(e.confidence)}
+>>>
+@@@ lib/i18n/msgs.ts
+<<<
+['última modificación','last modified'],
+===
+['variante','variant'],['última modificación','last modified'],
+>>>
+@@@ app/globals.css
+<<<
+:root[data-theme=light] .hero-holo .hero-badge{opacity:.95}
+===
+:root[data-theme=light] .hero-holo .hero-badge{opacity:.95}
+:root[data-theme=light] .hero-holo .hero-overlay{padding-left:16px;padding-bottom:12px}
+>>>

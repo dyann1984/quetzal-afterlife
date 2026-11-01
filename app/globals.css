@@ -76,3 +76,6 @@
 :root[data-theme=light] .hero-holo{background:radial-gradient(ellipse at 50% 40%,#0d2a4a 0%,#06101c 62%,#03070d 100%);border:1px solid #1d3550;border-radius:16px;padding:6px;box-shadow:0 10px 30px rgba(10,30,50,.25)}
 :root[data-theme=light] .brand img{border-radius:10px}
 :root[data-theme=light] .hero-holo .hero-badge{opacity:.95}
+:root[data-theme=light] .hero-holo .hero-overlay{padding-left:16px;padding-bottom:12px}
+
+.exp-overlay,.hero-holo{color:var(--c-e9edf1)}   /* los recuadros oscuros usan texto claro también en el tema claro */
