@@ -112,3 +112,13 @@
 @keyframes trypulse{0%,100%{box-shadow:0 0 14px rgba(212,175,55,.18)}50%{box-shadow:0 0 30px rgba(44,199,250,.35)}}
 @media (prefers-reduced-motion:reduce){.try-now{animation:none}.lab-progress i{transition:none}}
 @media (max-width:760px){.lab-info{grid-template-columns:1fr}.lab-compare,.lab-text{grid-template-columns:1fr}}
+
+/* ── Demostración guiada ──────────────────────────────────────────── */
+.demo-overlay{position:fixed;inset:0;z-index:120;background:rgba(3,7,13,.88);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto}
+.demo-card{width:min(900px,100%);max-height:100%;overflow:auto;border:1px solid var(--c-d4af37);background:var(--c-0a1a26);color:var(--c-e9edf1);border-radius:10px;padding:18px 20px;box-shadow:0 0 40px rgba(44,199,250,.18)}
+.demo-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.demo-bar{height:4px;background:var(--c-25313b);margin:10px 0 14px;border-radius:2px;overflow:hidden}.demo-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--c-13bfff),var(--c-d4af37));transition:width .9s linear}
+.demo-card h2{margin:0 0 8px;font-size:22px}.demo-body{font-size:14px;line-height:1.65;color:var(--c-c8d4dc);max-width:760px}
+.demo-visual{min-height:120px;margin:12px 0;display:flex;flex-direction:column;gap:10px;align-items:flex-start}.demo-visual .lab-compare{width:100%}.demo-visual .lab-pic{max-width:300px}
+.demo-nav{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--c-202832);padding-top:12px}
+@media (prefers-reduced-motion:reduce){.demo-bar i{transition:none}}

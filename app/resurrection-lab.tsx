@@ -30,7 +30,7 @@ const CONF_LABEL:Record<Confidence,Bi>={alta:{es:'ALTA',en:'HIGH'},media:{es:'ME
 const CONF_CLS:Record<Confidence,string>={alta:'vstatus-ok',media:'vstatus-only',baja:'vstatus-only',nula:'vstatus-diff'};
 const SEV_CLS:Record<string,string>={info:'vstatus-nc',aviso:'vstatus-only',dano:'vstatus-diff'};
 
-function save(name:string,data:Uint8Array|string,mime:string){
+export function save(name:string,data:Uint8Array|string,mime:string){
  const url=URL.createObjectURL(new Blob([data as BlobPart],{type:mime}));
  const a=document.createElement('a');a.href=url;a.download=name.replace(/[^\w.-]+/g,'_');document.body.appendChild(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -40,16 +40,23 @@ const hex=(b:Uint8Array,n=48)=>Array.from(b.subarray(0,n),x=>x.toString(16).padS
 const showText=(b:Uint8Array)=>new TextDecoder('utf-8',{fatal:false}).decode(b).replace(/\u0000/g,'␀');
 
 function useUrl(bytes:Uint8Array|undefined,mime:string){
- const [url,setUrl]=useState('');
- useEffect(()=>{if(!bytes){setUrl('');return;}const u=URL.createObjectURL(new Blob([bytes as BlobPart],{type:mime}));setUrl(u);return()=>URL.revokeObjectURL(u);},[bytes,mime]);
- return url;
+ // URL de datos (pura, sin efectos ni recursos que liberar): las imágenes pesan pocos KiB.
+ return useMemo(()=>{
+  if(!bytes)return '';
+  let s='';for(let k=0;k<bytes.length;k+=8192)s+=String.fromCharCode(...bytes.subarray(k,k+8192));
+  return `data:${mime};base64,${btoa(s)}`;
+ },[bytes,mime]);
 }
-function Pic({bytes,label,lang}:{bytes?:Uint8Array;label:string;lang:'es'|'en'}){
- const url=useUrl(bytes,'image/png');const [bad,setBad]=useState(false);
- useEffect(()=>setBad(false),[bytes]);
+function BlobImg({src,alt,onError}:{src:string;alt:string;onError:()=>void}){
+ // eslint-disable-next-line @next/next/no-img-element -- URL blob: next/image no puede optimizarla
+ return <img src={src} alt={alt} onError={onError} width={256} height={192}/>;
+}
+export function Pic({bytes,label,lang}:{bytes?:Uint8Array;label:string;lang:'es'|'en'}){
+ const url=useUrl(bytes,'image/png');const [badFor,setBadFor]=useState<Uint8Array|undefined>();
+ const bad=!!bytes&&badFor===bytes;
  return <figure className="lab-pic"><figcaption>{label}</figcaption>
   {bytes?(bad?<div className="lab-broken" role="img" aria-label={UI.cantShow[lang]}><span>✕</span>{UI.cantShow[lang]}{bytes&&<code>{hex(bytes,24)}…</code>}</div>
-   :url&&<img src={url} alt={label} onError={()=>setBad(true)} width={256} height={192}/>)
+   :url&&<BlobImg src={url} alt={label} onError={()=>setBadFor(bytes)}/>)
    :<div className="lab-broken"><span>∅</span>{UI.noRecovered[lang]}</div>}
  </figure>;
 }

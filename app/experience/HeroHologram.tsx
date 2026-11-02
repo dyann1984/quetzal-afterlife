@@ -59,10 +59,12 @@ export default function HeroHologram({onOpen}:{onOpen:()=>void}){
  const s=scene?.stats;
  return <div className="hero-holo" ref={box} data-ready={ready?'1':'0'}>
   {/* Logotipo oficial: póster mientras carga y fallback si no hay WebGL */}
+  {/* eslint-disable-next-line @next/next/no-img-element -- logo oficial estático: se conserva el render exacto */}
   <img className="hero-poster" src="/quetzal-logo.png" alt={tr('Logo oficial de Quetzal Afterlife')} aria-hidden={ready}/>
   {use3d&&caps&&<div className="hero-canvas" role="img" aria-label={tr('Quetzal holográfico tridimensional. Arrastra para girarlo.')}>
    <Boundary onError={onLost}><HeroCanvas fractions={fr} hasData={hasData} quality={caps.quality} active={inView&&!caps.reduced} reduced={caps.reduced} interactive={caps.interactive} onFirstFrame={()=>setReady(true)} onLost={onLost}/></Boundary>
   </div>}
+  {/* eslint-disable-next-line @next/next/no-img-element -- logo oficial estático: se conserva el render exacto */}
   {ready&&<img className="hero-badge" src="/quetzal-logo.png" alt={tr('Logo oficial de Quetzal Afterlife')}/>}
   <div className="hero-overlay">
    <p className="hero-caption" aria-live="polite">

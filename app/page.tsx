@@ -16,6 +16,7 @@ import Quetzalito from './quetzalito/Quetzalito';
 import {DEMO_CSV_A,DEMO_CSV_B,DEMO_INV_A,DEMO_INV_B,DEMO_VERIFICATION} from '../lib/demo';
 import {tr,tf,tm,nf,useUi} from '../lib/i18n';
 import UiControls from './UiControls';
+import GuidedDemo from './guided-demo';
 
 const sections=['Dashboard','Nueva recuperación','Laboratorio','Verificación','Archivo'] as const;
 type Section=(typeof sections)[number]|EngineSection;
@@ -54,6 +55,7 @@ export default function Home(){
  const [savedMsg,setSavedMsg]=useState('');
  const [isDemo,setIsDemo]=useState(false);
  const [expOpen,setExpOpen]=useState(false);
+ const [demoOpen,setDemoOpen]=useState(false);
  // Store
  const [store,setStore]=useState<ProjectStore>({version:1,projects:[]});
  const [openProject,setOpenProject]=useState<Project|null>(null);
@@ -199,6 +201,7 @@ export default function Home(){
 
  return <div className="shell">
   <aside>
+   {/* eslint-disable-next-line @next/next/no-img-element -- logo oficial estático: se conserva el render exacto */}
    <div className="brand"><img src="/quetzal-logo.png" alt={tr('Quetzal Afterlife')}/><span>{tr('RESURRECTION ENGINE')}</span></div>
    <div className="navlabel">{tr('ESPACIO DE TRABAJO')}</div>
    <nav aria-label={tr('Navegación principal')}>{sections.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['◈','＋','⌬','◇','▤'][i]}</span>{tr(s)}</button>)}</nav>
@@ -224,7 +227,10 @@ export default function Home(){
       <span className="kicker">{tr('◈   EL PASADO TIENE FUTURO')}</span>
       <h1>{tr('La evidencia es')}<br/><em>{tr('el punto de partida.')}</em></h1>
       <p>{tr('Recupera el contexto de sistemas heredados y construye un camino verificable hacia su reconstrucción.')}</p>
-      <button className="try-now" data-testid="try-quetzal-now" onClick={()=>setSection('Resurrection Lab')}><span aria-hidden>✺</span>{tr('TRY QUETZAL NOW')}<span aria-hidden>→</span></button>
+      <div style={{display:'flex',gap:'12px',flexWrap:'wrap',alignItems:'center'}}>
+       <button className="try-now" data-testid="try-quetzal-now" onClick={()=>setSection('Resurrection Lab')}><span aria-hidden>✺</span>{tr('TRY QUETZAL NOW')}<span aria-hidden>→</span></button>
+       <button className="secondary" data-testid="guided-demo-open" style={{marginTop:'22px'}} onClick={()=>setDemoOpen(true)}>{tr('▶ Demo guiada · 3 min')}</button>
+      </div>
       <p className="muted" style={{display:'block',margin:'8px 0 0',fontSize:11}}>{tr('6 archivos dañados reales · análisis en tu navegador · sin subir nada')}</p>
       <div style={{display:'flex',gap:'12px',flexWrap:'wrap'}}>
        <button className="primary" onClick={()=>setSection('Nueva recuperación')}>{tr('Iniciar recuperación')} <span>↗</span></button>
@@ -507,6 +513,7 @@ export default function Home(){
     </div>
    </div>}
 
+   {demoOpen&&<GuidedDemo onClose={()=>setDemoOpen(false)} onOpenLab={()=>{setDemoOpen(false);setSection('Resurrection Lab');}}/>}
    <Engine section={isEngineSection(section)?section:null} goto={setSection} experience={{open:expOpen,stage:STAGE_FOR_SECTION[section]??'materializar',onClose:()=>setExpOpen(false)}}/>
 
    <footer><span>{tr('QUETZAL AFTERLIFE')} <b> / </b> {tr('THE DIGITAL RESURRECTION ENGINE')}</span><span>{tr('MOTOR 2.0   ·   2026')}</span></footer>
