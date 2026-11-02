@@ -26,6 +26,10 @@ Therefore this project **does not state** that Kiro generated the specs or the c
 
 The competition-edition engine, Resurrection Lab, GIF/BMP/WAV analyzers, accessibility fixes and documentation were written in sessions with **Claude Code** (Anthropic's coding agent) under the author's direction. Every change is in `git log` with its tests. This is stated here so that no one infers Kiro authorship.
 
+## Prepared task for a real Kiro run (not executed)
+
+`.kiro/specs/tiff-structural-analyzer/` (requirements → design → tasks, EARS style) defines a small, isolated, objectively testable task: a TIFF structural analyzer (≥ 12 new tests, file list fixed in advance, plus creating one real Kiro hook). It was written by Claude Code so that **Kiro** can implement it. `.kiro/EVIDENCE.md` is an empty log to be filled with real data (Kiro version, dates, `kiro:`-prefixed commits, hook trigger, test counts). As of this commit **both are unexecuted**; nothing in this repository claims otherwise.
+
 ## Pending for the author (cannot be written by the repository)
 
 The official 2025 rules, carried over by third-party summaries (the 2026 rules page was not retrievable by us — see `docs/RELEASE-CANDIDATE.md`), asked entrants to explain how Kiro was used (vibe coding, agent hooks, specs, steering, MCP) and to include `/.kiro` with specs, hooks and steering. If the author uses Kiro for any real work before submitting, record here — with true dates:
