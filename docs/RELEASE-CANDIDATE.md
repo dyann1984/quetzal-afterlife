@@ -2,6 +2,18 @@
 
 Prepared 2026-11-02. **Nothing described here has been pushed, merged or deployed.** The exact commit is the one tagged `competition-rc1` (see the hand-over message; a document cannot contain its own hash).
 
+## 0. Publication status (updated 2026-11-02)
+
+| Item | Status |
+|---|---|
+| GitHub branch | `feat/competition-winner-edition` published (RC1 `0c399a7`, then `b3487df` Kiro task and `72ff3ea` E2E fix); default branch and `feat/kiroween-resurrection` untouched, nothing merged |
+| Public demo | **https://quetzal-kiroween.vercel.app** — separate Vercel project `quetzal-kiroween` (Hobby plan, no environment variables, no secrets copied), production branch `feat/competition-winner-edition`, deployed from commit `72ff3ea` |
+| Original site | `quetzal-afterlife.vercel.app` (project `quetzal-afterlife`) unchanged: same production deployment, domain, branch and protection |
+| Verified anonymously | fresh Chrome and Edge profiles: 0 failed/blocked requests, React hydrated, buttons work; 23/23 E2E in both; ES/EN × desktop/mobile navigation (14 sections each); 0 console errors |
+| Still open | Kiro execution evidence (`.kiro/EVIDENCE.md` empty), public video link, confirming the 2026 rules |
+
+Sections 1–7 below are the original RC1 analysis and are kept as written.
+
 ## 1. Repository state
 
 | Item | Finding |

@@ -2,6 +2,8 @@
 
 **Category: Resurrection.** QUETZAL revives *damaged legacy-format files* — the kind that "no longer open" — and states, byte by byte, what is verifiably recoverable and what is not. Everything runs in your browser; files are never uploaded.
 
+**Live demo (public, no login): https://quetzal-kiroween.vercel.app**
+
 No account, API key, paid service or technical knowledge is needed.
 
 ## 90-second path (no technical knowledge needed)

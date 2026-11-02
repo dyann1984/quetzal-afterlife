@@ -1,7 +1,7 @@
 # QUETZAL AFTERLIFE
 ### The Digital Resurrection Engine
 
-Production: https://quetzal-afterlife.vercel.app (**as of 2026-11-02 it still serves an earlier build without Resurrection Lab / TRY QUETZAL NOW**; it must be redeployed from this release candidate — see [docs/RELEASE-CANDIDATE.md](docs/RELEASE-CANDIDATE.md)) · Spanish README: [README.es.md](README.es.md) · **Judges: [docs/JUDGES.md](docs/JUDGES.md)**
+**Live demo for judges: https://quetzal-kiroween.vercel.app** (public, no login; deployed from branch `feat/competition-winner-edition`). The older site https://quetzal-afterlife.vercel.app is a previous build and is intentionally unchanged — see [docs/RELEASE-CANDIDATE.md](docs/RELEASE-CANDIDATE.md) · Spanish README: [README.es.md](README.es.md) · **Judges: [docs/JUDGES.md](docs/JUDGES.md)**
 
 QUETZAL recovers what is **verifiably** recoverable from damaged digital files and tells you plainly what is not. Everything runs in the browser: files are never uploaded.
 
