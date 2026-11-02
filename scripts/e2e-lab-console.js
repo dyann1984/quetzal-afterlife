@@ -10,7 +10,9 @@
   const rows = [], fail = m => rows.push({ ejemplo: '—', comprobacion: m, ok: false });
   const nav = [...document.querySelectorAll('nav button, aside button')].find(b => /Resurrection Lab/.test(b.textContent));
   if (!nav) return fail('no se encontró la sección Resurrection Lab') || console.table(rows);
-  nav.click(); await sleep(400);
+  nav.click();
+  for (let i = 0; i < 100 && !document.querySelector('[data-testid=lab-run-all]'); i++) await sleep(100);
+  if (!document.querySelector('[data-testid=lab-run-all]')) return fail('el Lab no se montó en 10 s') || console.table(rows);
   document.querySelector('[data-testid=lab-run-all]').click();
   for (let i = 0; i < 120 && !document.querySelector('[data-testid=lab-summary]'); i++) await sleep(500);
   const summary = [...document.querySelectorAll('[data-testid=lab-summary] tr')];
