@@ -31,14 +31,26 @@ function chunkBytes(type: string, data: Uint8Array): Uint8Array {
   out.set(data, 8); dv.setUint32(8 + data.length, crc32(out, 4, 8 + data.length)); return out;
 }
 
+/** ¿Firma PNG alterada pero con un chunk IHDR (longitud 13) en su sitio? Sirve para identificar y reparar. */
+export function pngSignatureDamaged(b: Uint8Array): boolean {
+  return b.length >= 33 && !matches(b, 0, SIG) && u32be(b, 8) === 13 && matches(b, 12, [0x49, 0x48, 0x44, 0x52]);
+}
+
 export function analyzePng(b: Uint8Array, verifyOnly = false): AnalysisResult {
   const findings: FileFinding[] = [], dmg: DamagedRange[] = [], items: RecoveredItem[] = [];
   const limitations = ['Imágenes entrelazadas (Adam7) no se decodifican por filas.', 'No se renderiza la imagen: se verifica estructura, CRC y flujo comprimido.'];
-  if (!matches(b, 0, SIG)) return { integrity: 'irrecuperable', findings: [{ severity: 'dano', code: 'firma_invalida', message: 'La firma PNG de 8 bytes no es válida.', offset: 0 }], damaged: [damaged(0, Math.min(8, b.length), 'firma PNG inválida')], items, limitations };
+  let sigFixed = false;
+  if (!matches(b, 0, SIG)) {
+    // Firma alterada pero con un IHDR en su sitio (longitud 13 + tipo «IHDR»): la estructura sigue ahí.
+    if (!pngSignatureDamaged(b)) return { integrity: 'irrecuperable', findings: [{ severity: 'dano', code: 'firma_invalida', message: 'La firma PNG de 8 bytes no es válida.', offset: 0 }], damaged: [damaged(0, Math.min(8, b.length), 'firma PNG inválida')], items, limitations };
+    sigFixed = true;
+    findings.push({ severity: 'dano', code: 'firma_alterada', message: 'La firma PNG de 8 bytes está alterada, pero el chunk IHDR sigue en su posición: la estructura es recuperable.', offset: 0 });
+    dmg.push(damaged(0, 8, 'firma PNG alterada'));
+  }
   const chunks = walk(b);
   const ihdr = chunks.find(c => c.type === 'IHDR');
-  if (!ihdr || !ihdr.crcOk || ihdr.length !== 13) {
-    findings.push({ severity: 'dano', code: 'ihdr_invalido', message: 'IHDR ausente, con CRC incorrecto o de longitud inválida: sin dimensiones no se puede interpretar la imagen.', offset: 8 });
+  if (!ihdr || !ihdr.complete || ihdr.length !== 13) {
+    findings.push({ severity: 'dano', code: 'ihdr_invalido', message: 'IHDR ausente o de longitud inválida: sin dimensiones no se puede interpretar la imagen.', offset: 8 });
     dmg.push(damaged(8, Math.min(b.length, 33), 'IHDR inválido'));
     return { integrity: 'irrecuperable', findings, damaged: dmg, items, limitations };
   }
@@ -49,7 +61,7 @@ export function analyzePng(b: Uint8Array, verifyOnly = false): AnalysisResult {
     return { integrity: 'irrecuperable', findings, damaged: [damaged(ihdr.offset, ihdr.offset + 25, 'IHDR fuera de rango')], items, limitations };
   }
   const rowBytes = Math.ceil((w * channels * depth) / 8) + 1;
-  items.push({ kind: 'metadatos', name: 'IHDR', size: 13, verified: true, basis: 'CRC-32 del chunk IHDR válido', preview: `${w}×${h} px, ${depth} bits, tipo de color ${ctype}${interlace ? ', entrelazado' : ''}` });
+  items.push({ kind: 'metadatos', name: 'IHDR', size: 13, verified: ihdr.crcOk, basis: ihdr.crcOk ? 'CRC-32 del chunk IHDR válido' : 'CRC-32 del IHDR incorrecto: dimensiones sin confirmar', preview: `${w}×${h} px, ${depth} bits, tipo de color ${ctype}${interlace ? ', entrelazado' : ''}` });
 
   let bad = 0;
   for (const c of chunks) {
@@ -71,6 +83,32 @@ export function analyzePng(b: Uint8Array, verifyOnly = false): AnalysisResult {
   for (const c of idats) { if (stream && c.crcOk) good.push(b.subarray(c.offset + 8, c.offset + 8 + c.length)); else stream = false; }
   if (idats.length && good.length < idats.length) findings.push({ severity: 'dano', code: 'idat_interrumpido', message: `Solo ${good.length} de ${idats.length} chunks IDAT son utilizables; los posteriores a un daño no se usan (el flujo comprimido depende de los bytes anteriores).` });
   if (interlace) { findings.push({ severity: 'aviso', code: 'entrelazado', message: 'PNG entrelazado: se verifica la estructura pero no se recuperan filas.' }); return { integrity: bad || !iendOk ? 'parcial' : 'integro', findings, damaged: dmg, items, limitations }; }
+
+  // Datos íntegros pese a campos de control dañados: un flujo zlib completo, con Adler-32 correcto y el tamaño exacto
+  // de w×h filas, prueba que los bytes comprimidos no han cambiado aunque el CRC-32 de un chunk, la firma o el IEND estén rotos.
+  const allIdat = chunks.filter(c => c.type === 'IDAT' && c.complete);
+  const zAll = allIdat.length && (bad > 0 || sigFixed || !iendOk) ? inflateZlib(concat(allIdat.map(c => b.subarray(c.offset + 8, c.offset + 8 + c.length))), 0, rowBytes * h + 16) : null;
+  if (zAll && zAll.complete && zAll.adlerOk === true && zAll.out.length === rowBytes * h && Array.from({ length: h }, (_, y) => zAll.out[y * rowBytes]).every(f => f <= 4)) {
+    findings.push({ severity: 'info', code: 'datos_integros', message: `Los datos de imagen están íntegros (Adler-32 correcto y tamaño exacto de ${w}×${h}); solo los campos de control (CRC, firma o cierre) están dañados.` });
+    items[0].verified = true; items[0].basis = 'dimensiones coherentes con el flujo IDAT (Adler-32 correcto y tamaño exacto)';
+    items.push({ kind: 'imagen-parcial', name: 'imagen completa', size: rowBytes * h, verified: true, basis: 'flujo IDAT completo con Adler-32 correcto y tamaño exacto', preview: `${w}×${h} px recuperables (100 % de la altura)` });
+    const parts: Uint8Array[] = [Uint8Array.from(SIG)]; let hasEnd = false;
+    for (const c of chunks) {
+      if (!c.complete) continue;
+      if (c.type === 'IEND') { hasEnd = true; parts.push(chunkBytes('IEND', new Uint8Array(0))); break; }
+      if (c.type === 'IHDR' || c.type === 'IDAT' || c.crcOk) parts.push(chunkBytes(c.type, b.subarray(c.offset + 8, c.offset + 8 + c.length)));
+    }
+    if (!hasEnd) parts.push(chunkBytes('IEND', new Uint8Array(0)));
+    const out = concat(parts), re = analyzePng(out, true);
+    const repaired = verifyOnly ? undefined : { name: 'reparado.png', bytes: out, structureVerified: re.integrity === 'integro',
+      note: 'PNG con la firma, los CRC-32 y el cierre IEND restituidos; los bytes de imagen no se tocan. Estructura, CRC-32 y Adler-32 verificados al re-analizarlo; no se comprobó con un visor externo.' };
+    return { integrity: 'danado', findings, damaged: dmg, items, repaired, limitations, meta: { ancho: w, alto: h, filasRecuperables: h, chunks: chunks.length } };
+  }
+  if (!ihdr.crcOk) {
+    findings.push({ severity: 'dano', code: 'ihdr_no_verificable', message: 'El CRC-32 del IHDR es incorrecto y los datos de imagen no permiten confirmar las dimensiones: no se recuperan filas.', offset: ihdr.offset });
+    dmg.push(damaged(ihdr.offset, ihdr.offset + 25, 'IHDR con CRC inválido'));
+    return { integrity: 'irrecuperable', findings, damaged: dmg, items, limitations };
+  }
   if (!good.length) { findings.push({ severity: 'dano', code: 'sin_idat', message: 'No hay datos de imagen (IDAT) utilizables.' }); return { integrity: 'irrecuperable', findings, damaged: dmg, items, limitations }; }
 
   const z = inflateZlib(concat(good), 0, Math.min(DEFAULT_LIMITS.maxEntryBytes, rowBytes * h + 16));
@@ -80,7 +118,7 @@ export function analyzePng(b: Uint8Array, verifyOnly = false): AnalysisResult {
   if (validRows < rows) { findings.push({ severity: 'dano', code: 'filtro_invalido', message: `Byte de filtro inválido en la fila ${validRows + 1}: las filas desde ahí no son fiables.` }); rows = validRows; }
   if (!z.complete && z.error) findings.push({ severity: 'dano', code: 'flujo_idat_danado', message: `El flujo comprimido termina antes de lo declarado: ${z.error}.` });
   const lost = h - rows;
-  const full = rows === h && bad === 0 && iendOk && z.complete && z.adlerOk === true && z.out.length === rowBytes * h;
+  const full = rows === h && bad === 0 && !sigFixed && iendOk && z.complete && z.adlerOk === true && z.out.length === rowBytes * h;
   if (lost > 0) findings.push({ severity: 'dano', code: 'filas_ausentes', message: `Se recuperan ${rows} de ${h} filas; las ${lost} restantes no existen en el archivo y no se reconstruyen.` });
 
   if (rows > 0) items.push({ kind: 'imagen-parcial', name: rows === h ? 'imagen completa' : `filas 1–${rows} de ${h}`, size: rows * rowBytes, verified: true,

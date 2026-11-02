@@ -9,7 +9,7 @@ import { buildZip } from './zip';
 export interface Fixture { name: string; bytes: Uint8Array; note: string; expectation: string }
 const enc = new TextEncoder();
 
-const chunk = (type: string, data: Uint8Array) => {
+export const chunk = (type: string, data: Uint8Array) => {
   const out = new Uint8Array(12 + data.length), dv = new DataView(out.buffer);
   dv.setUint32(0, data.length); for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i); out.set(data, 8); dv.setUint32(8 + data.length, crc32(out, 4, 8 + data.length)); return out;
 };

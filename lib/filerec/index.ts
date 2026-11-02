@@ -4,7 +4,7 @@
  *   elementos recuperados verificados y reparación opcional. Nunca ejecuta ni escribe nada: solo lee bytes.
  */
 import { sha256Hex } from '../ingest';
-import { Deadline, DEFAULT_LIMITS, type Limits } from './core';
+import { Deadline, DEFAULT_LIMITS, entropy, type Limits } from './core';
 import { identify } from './identify';
 import { pngAnalyzer } from './png';
 import { jpegAnalyzer } from './jpeg';
@@ -29,6 +29,7 @@ export async function analyzeFile(bytes: Uint8Array, name: string, limits: Limit
   let res;
   try { res = an.analyze(bytes, { name, deadline: new Deadline(limits.maxMillis), limits }); }
   catch (e) { return done({ integrity: 'no-analizado', findings: [{ severity: 'dano', code: 'error_interno', message: `El analizador falló con una entrada malformada: ${e instanceof Error ? e.message : String(e)}.` }], damaged: [], items: [], limitations: [] }); }
+  if (res.integrity === 'irrecuperable') res.meta = { ...res.meta, entropiaBitsPorByte: Number(entropy(bytes).toFixed(2)) };
   for (const it of res.items) if (it.bytes) it.sha256 = await sha256Hex(it.bytes);
   if (res.repaired) res.repaired.sha256 = await sha256Hex(res.repaired.bytes);
   return done(res);
@@ -53,6 +54,7 @@ export function reportJson(r: FileReport | CarveReport): string {
 export function exportRecovered(r: FileReport): Uint8Array {
   const enc = new TextEncoder(), files: Array<{ name: string; bytes: Uint8Array }> = [];
   for (const it of r.items) if (it.verified && it.bytes) files.push({ name: `recuperado/${it.name}`, bytes: it.bytes });
+  for (const it of r.items) if (it.partialBytes) files.push({ name: `parcial-no-verificado/${it.name.replace(/[^\w.-]+/g, '_')}`, bytes: it.partialBytes });
   for (const it of r.items) if (it.kind === 'texto' && it.verified && it.preview !== undefined) files.push({ name: `texto/${it.name.replace(/[^\w.-]+/g, '_')}.txt`, bytes: enc.encode(it.preview) });
   if (r.repaired) files.push({ name: `reparado/${r.repaired.name}`, bytes: r.repaired.bytes });
   files.push({ name: 'informe.json', bytes: enc.encode(reportJson(r)) });

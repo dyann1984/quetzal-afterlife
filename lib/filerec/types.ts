@@ -12,6 +12,8 @@ export interface RecoveredItem {
   basis: string;
   preview?: string;
   bytes?: Uint8Array;
+  /** Prefijo legible de un flujo dañado. NO verificado: no hay suma de comprobación que lo respalde. */
+  partialBytes?: Uint8Array;
   sha256?: string;
 }
 

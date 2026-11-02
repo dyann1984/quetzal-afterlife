@@ -56,10 +56,25 @@ export function readZip(b: Uint8Array, lim: Limits = DEFAULT_LIMITS, dl: Deadlin
 }
 function nextLocal(b: Uint8Array, from: number) { for (let i = from; i + 4 <= b.length; i++) if (b[i] === 0x50 && b[i + 1] === 0x4b && b[i + 2] === 3 && b[i + 3] === 4) return i; return -1; }
 
-export interface Extracted { status: 'ok' | 'crc' | 'truncado' | 'cifrado' | 'metodo' | 'bomba' | 'error' | 'cabecera'; data?: Uint8Array; detail: string; range: [number, number] }
+/** ¿Firma ZIP inicial alterada pero con directorio central (PK 01 02) y su cierre íntegros? */
+export function zipSignatureDamaged(b: Uint8Array): boolean {
+  if (b.length < 22 || matches(b, 0, LOCAL) || matches(b, 0, EOCD)) return false;
+  const eocd = lastIndexOfSeq(b, EOCD, b.length - 22, Math.max(0, b.length - 65557));
+  return eocd >= 0 && u16le(b, eocd + 10) > 0 && matches(b, u32le(b, eocd + 16), CEN);
+}
+/** La firma local falta pero el resto de la cabecera coincide con el directorio central (mismo nombre en el mismo sitio). */
+function localHeaderLooksRight(b: Uint8Array, e: ZipEntry): boolean {
+  if (!e.central || e.offset + 30 > b.length) return false;
+  const nl = u16le(b, e.offset + 26);
+  return nl > 0 && e.offset + 30 + nl <= b.length && td.decode(b.subarray(e.offset + 30, e.offset + 30 + nl)) === e.name;
+}
+
+export interface Extracted { status: 'ok' | 'crc' | 'truncado' | 'cifrado' | 'metodo' | 'bomba' | 'error' | 'cabecera'; data?: Uint8Array; detail: string; range: [number, number]; sigRestored?: boolean }
 export function extractEntry(b: Uint8Array, e: ZipEntry, lim: Limits, budget: { left: number }): Extracted {
   const r = (a: number, z: number): [number, number] => [a, z];
   if (e.flags & 1) return { status: 'cifrado', detail: 'entrada cifrada: el contenido no es accesible sin la clave', range: r(e.offset, e.offset) };
+  const sigRestored = !matches(b, e.offset, LOCAL) && localHeaderLooksRight(b, e);
+  if (sigRestored) { const x = extractEntry(patchLocal(b, e.offset), e, lim, budget); return { ...x, sigRestored: true, detail: x.status === 'ok' ? 'CRC-32 coincide (firma de cabecera local alterada y restituida)' : x.detail }; }
   if (!matches(b, e.offset, LOCAL)) return { status: 'cabecera', detail: 'la cabecera local no está donde indica el directorio', range: r(e.offset, Math.min(e.offset + 30, b.length)) };
   const start = e.offset + 30 + u16le(b, e.offset + 26) + u16le(b, e.offset + 28), end = start + e.comp;
   if (e.uncomp > lim.maxEntryBytes || e.uncomp > lim.maxRatio * Math.max(e.comp, 1) + 1_048_576) return { status: 'bomba', detail: `tamaño declarado (${e.uncomp} B) fuera de límites o con relación sospechosa respecto a ${e.comp} B comprimidos`, range: r(start, Math.min(end, b.length)) };
@@ -80,20 +95,22 @@ export function extractEntry(b: Uint8Array, e: ZipEntry, lim: Limits, budget: { 
   return { status: 'ok', data: out, detail: 'CRC-32 coincide', range: r(start, end) };
 }
 
-// ─── Escritura segura de ZIP (solo almacenado) ───────────────────────────────
-export function buildZip(files: Array<{ name: string; bytes: Uint8Array }>): Uint8Array {
+function patchLocal(b: Uint8Array, off: number): Uint8Array { const c = b.slice(); c.set(LOCAL, off); return c; }
+
+// ─── Escritura segura de ZIP (almacenado, o Deflate si se pasa un compresor) ─
+export function buildZip(files: Array<{ name: string; bytes: Uint8Array }>, deflate?: (d: Uint8Array) => Uint8Array): Uint8Array {
   const enc = new TextEncoder(), locals: Uint8Array[] = [], central: Uint8Array[] = []; let off = 0;
   const seen = new Set<string>();
   for (const f of files) {
     let name = safeName(f.name); for (let i = 1; seen.has(name); i++) name = `${safeName(f.name)}~${i}`; seen.add(name);
-    const nb = enc.encode(name), crc = crc32(f.bytes);
+    const nb = enc.encode(name), crc = crc32(f.bytes), body = deflate ? deflate(f.bytes) : f.bytes, method = deflate ? 8 : 0;
     const lh = new Uint8Array(30 + nb.length), dv = new DataView(lh.buffer);
-    dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0x0800, true); dv.setUint16(10, 0, true); dv.setUint16(12, 0x21, true);
-    dv.setUint32(14, crc, true); dv.setUint32(18, f.bytes.length, true); dv.setUint32(22, f.bytes.length, true); dv.setUint16(26, nb.length, true); lh.set(nb, 30);
+    dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0x0800, true); dv.setUint16(8, method, true); dv.setUint16(10, 0, true); dv.setUint16(12, 0x21, true);
+    dv.setUint32(14, crc, true); dv.setUint32(18, body.length, true); dv.setUint32(22, f.bytes.length, true); dv.setUint16(26, nb.length, true); lh.set(nb, 30);
     const ch = new Uint8Array(46 + nb.length), cv = new DataView(ch.buffer);
-    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true); cv.setUint16(14, 0x21, true);
-    cv.setUint32(16, crc, true); cv.setUint32(20, f.bytes.length, true); cv.setUint32(24, f.bytes.length, true); cv.setUint16(28, nb.length, true); cv.setUint32(42, off, true); ch.set(nb, 46);
-    locals.push(lh, f.bytes); central.push(ch); off += lh.length + f.bytes.length;
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true); cv.setUint16(10, method, true); cv.setUint16(14, 0x21, true);
+    cv.setUint32(16, crc, true); cv.setUint32(20, body.length, true); cv.setUint32(24, f.bytes.length, true); cv.setUint16(28, nb.length, true); cv.setUint32(42, off, true); ch.set(nb, 46);
+    locals.push(lh, body); central.push(ch); off += lh.length + body.length;
   }
   const cd = concat(central), end = new Uint8Array(22), ev = new DataView(end.buffer);
   ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true); ev.setUint32(12, cd.length, true); ev.setUint32(16, off, true);
@@ -112,17 +129,20 @@ export function analyzeZip(b: Uint8Array, ctx: { deadline?: Deadline; limits?: L
   const z = readZip(b, lim, dl);
   const findings = [...z.findings], dmg = [...z.damaged], items: RecoveredItem[] = [], budget = { left: lim.maxTotalBytes };
   const limitations = ['ZIP64, cifrado y métodos distintos de almacenado/Deflate no se soportan.', 'Los archivos Office se reconstruyen como ZIP; Word/Excel pueden rechazarlos si faltan partes esenciales.'];
-  const ok: Array<{ name: string; bytes: Uint8Array }> = [], texts = new Map<string, string>();
+  const ok: Array<{ name: string; bytes: Uint8Array }> = [], texts = new Map<string, string>(), sigFix: number[] = [];
   let verified = 0;
   for (const e of z.entries) {
     if (dl.expired) { findings.push({ severity: 'aviso', code: 'tiempo_agotado', message: 'Se agotó el presupuesto de tiempo: el análisis es parcial.' }); break; }
     if (e.name.endsWith('/')) continue;
     const x = extractEntry(b, e, lim, budget);
     const good = x.status === 'ok';
+    if (x.sigRestored) { sigFix.push(e.offset); findings.push({ severity: 'dano', code: 'firma_local_alterada', message: `"${e.safe}": la firma de la cabecera local está alterada; el resto de la cabecera coincide con el directorio central.`, offset: e.offset }); dmg.push(damaged(e.offset, e.offset + 4, `${e.safe}: firma local alterada`)); }
     if (good) { verified++; if (x.data!.length <= 4_194_304) ok.push({ name: e.safe, bytes: x.data! }); if (/^(\[Content_Types\]\.xml|word\/document\.xml|xl\/(workbook|sharedStrings)\.xml)$/.test(e.name) || /^xl\/worksheets\/sheet\d+\.xml$/.test(e.name) || /^docProps\//.test(e.name)) texts.set(e.name, td.decode(x.data!)); }
     else { findings.push({ severity: x.status === 'cifrado' ? 'aviso' : 'dano', code: `entrada_${x.status}`, message: `"${e.safe}": ${x.detail}.`, offset: x.range[0] }); if (x.status !== 'cifrado') dmg.push(damaged(x.range[0], Math.max(x.range[1], x.range[0] + 1), `${e.safe}: ${x.status}`)); }
     items.push({ kind: 'entrada', name: e.safe, size: x.data?.length ?? e.uncomp, verified: good, basis: x.detail, bytes: good && x.data!.length <= 1_048_576 ? x.data : undefined,
-      preview: good && /\.(txt|xml|csv|json|md|rels)$/i.test(e.name) ? td.decode(x.data!.subarray(0, 160)) : undefined });
+      preview: good && /\.(txt|xml|csv|json|md|rels)$/i.test(e.name) ? td.decode(x.data!.subarray(0, 160)) : undefined,
+      // prefijo legible de un flujo dañado: NO verificado (no hay CRC que lo respalde), se ofrece aparte y rotulado
+      partialBytes: !good && x.data && x.data.length > 0 && x.data.length <= 1_048_576 ? x.data : undefined });
   }
   const names = new Set(z.entries.map(e => e.name));
   const kind = names.has('[Content_Types].xml') ? (names.has('word/document.xml') ? 'DOCX' : names.has('xl/workbook.xml') ? 'XLSX' : [...names].some(n => n.startsWith('ppt/')) ? 'PPTX' : 'OOXML') : 'ZIP';
@@ -139,11 +159,17 @@ export function analyzeZip(b: Uint8Array, ctx: { deadline?: Deadline; limits?: L
   }
   const total = z.entries.filter(e => !e.name.endsWith('/')).length;
   let repaired: AnalysisResult['repaired'];
+  if (sigFix.length > 0 && verified === total && z.eocd >= 0 && !z.usedFallback) {
+    // Reparación en el sitio: solo se restituyen las firmas «PK 03 04»; el resto de bytes queda idéntico.
+    const out = b.slice(); for (const o of sigFix) out.set(LOCAL, o);
+    const re = readZip(out, lim), allOk = re.entries.length === z.entries.length && re.entries.every(e => { const r = extractEntry(out, e, lim, { left: lim.maxTotalBytes }); return r.status === 'ok' && !r.sigRestored; });
+    repaired = { name: `reparado.${kind === 'ZIP' ? 'zip' : kind.toLowerCase()}`, bytes: out, structureVerified: allOk, note: `Se restituyeron ${sigFix.length} firma(s) de cabecera local; el resto de los bytes no se tocó. Las ${total} entradas verifican su CRC-32 al releerlo; no se abrió con la aplicación de Office.` };
+  } else
   if (ok.length > 0 && (verified < total || z.usedFallback || z.eocd < 0)) {
     const out = buildZip(ok), re = readZip(out), allOk = re.entries.length === ok.length && re.entries.every(e => extractEntry(out, e, lim, { left: lim.maxTotalBytes }).status === 'ok');
     repaired = { name: `reconstruido.${kind === 'ZIP' ? 'zip' : kind.toLowerCase()}`, bytes: out, structureVerified: allOk, note: `ZIP nuevo con las ${ok.length} entrada(s) verificadas por CRC-32 (${total - verified} no recuperables se omiten). Estructura verificada al releerlo; no se abrió con la aplicación de Office.` };
   }
-  const integrity = total === 0 ? 'irrecuperable' : verified === total && z.eocd >= 0 && !z.usedFallback ? 'integro' : verified === 0 ? 'irrecuperable' : verified === total ? 'danado' : 'parcial';
+  const integrity = total === 0 ? 'irrecuperable' : verified === total && z.eocd >= 0 && !z.usedFallback && sigFix.length === 0 ? 'integro' : verified === 0 ? 'irrecuperable' : verified === total ? 'danado' : 'parcial';
   return { integrity, findings, damaged: dmg, items, repaired, limitations, meta: { tipo: kind, entradas: total, verificadas: verified } };
 }
 export const zipAnalyzer: Analyzer = { id: 'zip', label: 'ZIP / Office', analyze: (b, c) => analyzeZip(b, { deadline: c.deadline, limits: c.limits }) };

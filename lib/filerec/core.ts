@@ -193,6 +193,55 @@ export function inflateZlib(src: Uint8Array, start = 0, maxOut = DEFAULT_LIMITS.
   return { ...r, adlerOk };
 }
 
+/**
+ * Compresor Deflate propio (LZ77 con cadena de hash + Huffman fijo). Determinista: la misma entrada da siempre los mismos bytes.
+ * Se usa para generar ejemplos con compresión REAL (el motor los descomprime con `inflateRaw`, no con una copia del original).
+ */
+export function deflateRawFixed(data: Uint8Array): Uint8Array {
+  const out: number[] = []; let bb = 0, bc = 0;
+  const put = (v: number, n: number) => { bb |= v << bc; bc += n; while (bc >= 8) { out.push(bb & 255); bb >>>= 8; bc -= 8; } };
+  const huff = (code: number, len: number) => { for (let i = len - 1; i >= 0; i--) put((code >> i) & 1, 1); };
+  const lit = (s: number) => { if (s < 144) huff(0x30 + s, 8); else if (s < 256) huff(0x190 + s - 144, 9); else if (s < 280) huff(s - 256, 7); else huff(0xc0 + s - 280, 8); };
+  put(1, 1); put(1, 2);
+  const head = new Int32Array(1 << 15).fill(-1), prev = new Int32Array(data.length).fill(-1);
+  const hash = (i: number) => ((data[i] << 10) ^ (data[i + 1] << 5) ^ data[i + 2]) & 0x7fff;
+  const insert = (i: number) => { if (i + 2 < data.length) { const h = hash(i); prev[i] = head[h]; head[h] = i; } };
+  let i = 0;
+  while (i < data.length) {
+    let bestLen = 0, bestDist = 0;
+    if (i + 2 < data.length) {
+      let cand = head[hash(i)], tries = 24;
+      while (cand >= 0 && tries-- > 0 && i - cand <= 32768) {
+        let l = 0; while (l < 258 && i + l < data.length && data[cand + l] === data[i + l]) l++;
+        if (l > bestLen) { bestLen = l; bestDist = i - cand; if (l === 258) break; }
+        cand = prev[cand];
+      }
+    }
+    if (bestLen >= 3) {
+      let s = 28; while (LBASE[s] > bestLen) s--;
+      lit(257 + s); put(bestLen - LBASE[s], LEXT[s]);
+      let d = 29; while (DBASE[d] > bestDist) d--;
+      huff(d, 5); put(bestDist - DBASE[d], DEXT[d]);
+      for (let k = 0; k < bestLen; k++) insert(i + k);
+      i += bestLen;
+    } else { lit(data[i]); insert(i); i++; }
+  }
+  lit(256); if (bc > 0) out.push(bb & 255);
+  return Uint8Array.from(out);
+}
+/** Flujo zlib (RFC 1950) con compresión Deflate real. */
+export function deflateZlib(data: Uint8Array): Uint8Array {
+  const ad = adler32(data);
+  return concat([Uint8Array.of(0x78, 0x9c), deflateRawFixed(data), Uint8Array.of(ad >>> 24, (ad >>> 16) & 255, (ad >>> 8) & 255, ad & 255)]);
+}
+/** Entropía de Shannon en bits por byte (0–8): ≈8 indica datos aleatorios o cifrados, sin estructura aprovechable. */
+export function entropy(b: Uint8Array): number {
+  if (!b.length) return 0;
+  const c = new Uint32Array(256); for (let i = 0; i < b.length; i++) c[b[i]]++;
+  let h = 0; for (let k = 0; k < 256; k++) if (c[k]) { const p = c[k] / b.length; h -= p * Math.log2(p); }
+  return h;
+}
+
 /** Flujo zlib válido con bloques almacenados (sin compresión): para reparaciones deterministas. */
 export function deflateStored(data: Uint8Array): Uint8Array {
   const parts: Uint8Array[] = [Uint8Array.of(0x78, 0x01)];

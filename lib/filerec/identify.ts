@@ -4,6 +4,8 @@
  */
 import { ascii, matches, latin1 } from './core';
 import type { Category, Identification } from './types';
+import { pngSignatureDamaged } from './png';
+import { zipSignatureDamaged } from './zip';
 
 interface Sig { id: string; label: string; category: Category; analyzer: string | null; at: number; bytes: ArrayLike<number>; dangerous?: boolean; weak?: boolean; extra?: (b: Uint8Array) => boolean }
 const S = (id: string, label: string, category: Category, analyzer: string | null, at: number, bytes: ArrayLike<number> | string, o: Partial<Sig> = {}): Sig =>
@@ -42,8 +44,10 @@ const SIGS: Sig[] = [
 
 const looksText = (b: Uint8Array): boolean => {
   const n = Math.min(b.length, 4096); if (n === 0) return false;
-  let ctrl = 0; for (let i = 0; i < n; i++) { const c = b[i]; if (c === 0) return false; if (c < 9 || (c > 13 && c < 32)) ctrl++; }
-  return ctrl / n < 0.02;
+  // Un texto dañado puede tener algunos bytes a cero o de control: se acepta si la mayoría es ASCII imprimible o UTF-8 válido.
+  let ctrl = 0, nul = 0, print = 0; for (let i = 0; i < n; i++) { const c = b[i]; if (c === 0) nul++; else if (c < 9 || (c > 13 && c < 32)) ctrl++; else if (c >= 32 && c < 127) print++; }
+  if (nul === 0) return ctrl / n < 0.02;
+  return (nul + ctrl) / n < 0.1 && print / n > 0.7;
 };
 
 export function identify(bytes: Uint8Array, name: string): Identification {
@@ -56,6 +60,9 @@ export function identify(bytes: Uint8Array, name: string): Identification {
     if (matches(bytes, s.at, s.bytes) && (!s.extra || s.extra(bytes))) { if (!hit || (hit.weak && !s.weak)) hit = s; if (!s.weak) break; }
   }
   if (!hit && pdfAt >= 0) hit = SIGS.find(s => s.id === 'pdf')!;
+  // Firma alterada pero con estructura interna reconocible (se identifica con confianza media y se explica por qué)
+  if (!hit && pngSignatureDamaged(bytes)) return { id: 'png', label: 'PNG', category: 'imagen', analyzer: 'png', confidence: 'media', signals: ['firma binaria alterada, pero el chunk IHDR (longitud 13) está en su posición de PNG'], dangerous: false };
+  if (!hit && zipSignatureDamaged(bytes)) return { id: 'zip', label: 'ZIP', category: 'comprimido', analyzer: 'zip', confidence: 'media', signals: ['firma binaria alterada, pero el directorio central ZIP (PK 01 02) y su cierre están íntegros'], dangerous: false };
   const signals: string[] = [];
   if (hit) {
     signals.push(`firma binaria de ${hit.label}${hit.id === 'pdf' && pdfAt > 0 ? ` a ${pdfAt} bytes del inicio` : ''}`);
