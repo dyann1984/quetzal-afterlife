@@ -79,7 +79,7 @@ export default function Quetzalito({section,context,onNavigate}:{section:string;
    <div className="qz-title"><h2 id={`${uid}-title`}>{t('name')}</h2><p>{min?`${t('inSection')}: ${title}`:t('role')}</p></div>
    <div className="qz-ctl">
     {!min&&<div className="qz-seg" role="group" aria-label={t('langLabel')}>
-     {(['es','en'] as Lang[]).map(l=><button key={l} type="button" aria-pressed={lang===l} aria-label={l==='es'?'Español':'English'} onClick={()=>setLang(l)}>{l.toUpperCase()}</button>)}
+     {(['es','en'] as Lang[]).map(l=><button key={l} type="button" aria-pressed={lang===l} aria-label={l==='es'?'ES · Español':'EN · English'} onClick={()=>setLang(l)}>{l.toUpperCase()}</button>)}
     </div>}
     {!min&&<button type="button" aria-label={`${t('themeLabel')}: ${t(THEME_KEY[ui.theme])}`} title={`${t('themeLabel')}: ${t(THEME_KEY[ui.theme])}`}
      onClick={()=>setTheme(THEME_ORDER[(THEME_ORDER.indexOf(ui.theme)+1)%3])}><span aria-hidden="true">{THEME_ICON[ui.theme]}</span></button>}

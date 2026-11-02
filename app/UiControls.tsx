@@ -7,7 +7,7 @@ export default function UiControls(){
  const ui=useUi();
  return <div className="ui-controls">
   <div className="ui-seg" role="group" aria-label={tr('Idioma')}>
-   {(['es','en'] as const).map(l=><button key={l} type="button" aria-pressed={ui.lang===l} aria-label={l==='es'?'Español':'English'} lang={l} onClick={()=>setLang(l)}>{l.toUpperCase()}</button>)}
+   {(['es','en'] as const).map(l=><button key={l} type="button" aria-pressed={ui.lang===l} aria-label={l==='es'?'ES · Español':'EN · English'} lang={l} onClick={()=>setLang(l)}>{l.toUpperCase()}</button>)}
   </div>
   <label className="ui-theme"><span className="sr-only">{tr('Tema')}</span>
    <select value={ui.theme} onChange={e=>setTheme(e.target.value as ThemePref)} aria-label={tr('Tema')}>

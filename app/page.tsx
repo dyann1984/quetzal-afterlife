@@ -202,7 +202,7 @@ export default function Home(){
  return <div className="shell">
   <aside>
    {/* eslint-disable-next-line @next/next/no-img-element -- logo oficial estático: se conserva el render exacto */}
-   <div className="brand"><img src="/quetzal-logo.png" alt={tr('Quetzal Afterlife')}/><span>{tr('RESURRECTION ENGINE')}</span></div>
+   <div className="brand"><img src="/quetzal-logo-640.png" alt={tr('Quetzal Afterlife')}/><span>{tr('RESURRECTION ENGINE')}</span></div>
    <div className="navlabel">{tr('ESPACIO DE TRABAJO')}</div>
    <nav aria-label={tr('Navegación principal')}>{sections.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['◈','＋','⌬','◇','▤'][i]}</span>{tr(s)}</button>)}</nav>
    <div className="navlabel" style={{marginTop:'22px'}}>{tr('MOTOR DE RESURRECCIÓN 2.0')}</div>
