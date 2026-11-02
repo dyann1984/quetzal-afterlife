@@ -55,4 +55,4 @@ One original assertion was updated: the Quetzalito test that counted 13 sections
 - Lighthouse (headless Chrome, software WebGL): accessibility 100, best practices 100, SEO 100; performance 54–67 because the headless run renders the hologram without a GPU (Total Blocking Time ≈ 1 s). With WebGL disabled the same page scores 87 (TBT 30 ms); on a real Intel UHD 630 GPU the browser recorded no long tasks. Details in test-log.
 
 ## Kiro contributions
-Specs in `.kiro/specs/` (DBF archaeology, inventory reconstruction) and steering files precede this branch and are preserved untouched. This branch's work is documented in the commit history (`git log feat/integracion-final..feat/competition-winner-edition`).
+See [KIRO.md](KIRO.md) for the evidence-based statement (steering + two specs, no hooks, implementation with Claude Code, no proof of Kiro execution in the repository). Specs in `.kiro/specs/` (DBF archaeology, inventory reconstruction) and steering files precede this branch and are preserved untouched. This branch's work is documented in the commit history (`git log feat/integracion-final..feat/competition-winner-edition`).

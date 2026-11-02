@@ -33,3 +33,24 @@ Archivos maliciosos: no ejecutar, limitar bytes/filas, validar estructura y codi
 
 ## Siguientes fases
 Fixture real de DBF para validación de dialecto FoxPro/VFP; soporte de archivos de memo; proyectos persistidos; motor de hipótesis con incertidumbre; operaciones de inventario y verificaciones independientes; exportación segura y despliegue.
+
+
+---
+
+## Competition Winner Edition — file-recovery architecture (English summary)
+
+```
+bytes (memory, read-only)
+  └─ identify()                lib/filerec/identify.ts   signature → format; structure fallback for altered signatures
+       └─ analyzer[format]     png · jpeg · pdf · zip · text · gif · bmp · wav        (lib/filerec/*.ts)
+            └─ AnalysisResult  integrity, findings, damaged ranges (+512 B sectors), items (verified flag), repaired file
+                 └─ analyzeFile() adds SHA-256 of input, items and repair; guards: size limit, deadline, dangerous types skipped
+Lab:   lib/filerec/lab.ts   deterministic ORIGINAL + DAMAGED generators → runLab() → checks compared with the original
+UI:    app/resurrection-lab.tsx (cards, progress, before/after, downloads), app/guided-demo.tsx (8 steps, real engine)
+Explain: lib/filerec/explain.ts — deterministic rules over the report (not AI)
+i18n:  lib/i18n (ES/EN); every engine message has an English pair, enforced by lib/i18n/i18n.test.ts
+```
+
+Design rules: (1) *verified* only with an objective check; (2) repairs never alter data bytes whose checksum already verifies; (3) unverifiable bytes are exported separately and labelled; (4) all work is in-browser and in-memory, with limits (8 MiB/file, 200:1 decompression ratio, 8 s deadline); (5) executables are identified, never run.
+
+Media analyzers (`lib/filerec/media.ts`) verify container structure only. GIF keeps complete frames and re-adds the trailer; BMP compares declared vs. present rows and zero-fills missing ones (flagged); WAV trims to whole samples and fixes RIFF/data sizes. None decodes pixels or audio.

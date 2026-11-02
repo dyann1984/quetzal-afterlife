@@ -1,11 +1,19 @@
 # QUETZAL AFTERLIFE
 ### The Digital Resurrection Engine
 
-Live: https://quetzal-afterlife.vercel.app · Spanish README: [README.es.md](README.es.md)
+Production: https://quetzal-afterlife.vercel.app (**as of 2026-11-02 it still serves an earlier build without Resurrection Lab / TRY QUETZAL NOW**; it must be redeployed from this release candidate — see [docs/RELEASE-CANDIDATE.md](docs/RELEASE-CANDIDATE.md)) · Spanish README: [README.es.md](README.es.md) · **Judges: [docs/JUDGES.md](docs/JUDGES.md)**
 
 QUETZAL recovers what is **verifiably** recoverable from damaged digital files and tells you plainly what is not. Everything runs in the browser: files are never uploaded.
 
 > **Honesty contract.** An item is marked *verified* only when an objective check backs it (CRC-32, Adler-32, SHA-256, re-analysis of the repair). Overwritten or missing data is reported as lost, never invented. Nothing here claims universal recovery.
+
+## Problem → solution
+
+**Problem.** A broken CRC, an erased signature, a cut-off download or a few zeroed sectors usually get one answer from common tools: "corrupt file". Cloud recoverers want your sensitive data; desktop tools say "recovered" without saying how.
+
+**Solution.** QUETZAL identifies the format by signature or structure, locates the damage to the exact byte range, repairs only what can be proven, re-analyses its own repair, and reports what was lost. It runs entirely client-side, with its own Inflate/Deflate, CRC-32 and Adler-32 implementations.
+
+**What makes it different.** Every recovered element carries a `verified` flag backed by a concrete check; a built-in negative control (an unrecoverable file) proves it does not fabricate data; and the Lab compares each result with a reference original so anyone can check the verdict.
 
 ## Try it in 30 seconds
 
@@ -96,4 +104,18 @@ Files are processed in memory in your browser and never sent anywhere. Limits: 8
 
 ## Credits
 
-Built with Kiro specs (see [.kiro/](.kiro/)) and extended in the `feat/competition-winner-edition` branch. MIT licence applies to the code, not to the brand imagery.
+**Kiro:** the repository carries Kiro steering and two Kiro-format specs in [.kiro/](.kiro/); there are **no Kiro hooks**, and implementation was done with Claude Code. The exact, evidence-based statement is in [docs/KIRO.md](docs/KIRO.md).
+
+MIT licence applies to the code, not to the brand imagery.
+
+## Project timeline (evidence)
+
+The first commit is `35a708a`, **2026-10-30 20:22 (−06:00)**, i.e. on the day the Kiroween 2026 submission period opened; the history is public and linear (`git log --reverse`). Phases: DBF archaeology (Oct 30–31) → tabular engine 2.0 → universal file recovery → 3D/2.5D hologram → Quetzalito → ES/EN + themes → Competition Winner Edition (Resurrection Lab, GIF/BMP/WAV, accessibility; Nov 2).
+
+## Screenshots
+
+Recent captures (production build) are in [docs/capturas-lab/](docs/capturas-lab/): Dashboard with TRY QUETZAL NOW, PNG original/damaged/recovered, partial ZIP, and GIF/BMP/WAV recoveries on desktop and a 375 px phone viewport.
+
+## For judges
+
+Start at **[docs/JUDGES.md](docs/JUDGES.md)** (English, 90-second path, what is recoverable vs. only diagnosed, how to verify). Release status and requirement checklist: [docs/RELEASE-CANDIDATE.md](docs/RELEASE-CANDIDATE.md).
