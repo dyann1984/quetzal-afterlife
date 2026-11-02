@@ -15,8 +15,8 @@ describe('base de conocimiento',()=>{
   }
   for(const e of ENTRIES)expect(e.a.es,e.id).not.toBe(e.a.en);
  });
- it('cubre las 13 secciones con contenido, pasos y sugerencias válidas en ambos idiomas',()=>{
-  expect(SECTION_IDS.length).toBe(13);
+ it('cubre las 14 secciones con contenido, pasos y sugerencias válidas en ambos idiomas',()=>{
+  expect(SECTION_IDS.length).toBe(14);
   for(const s of SECTION_IDS){
    const i=SECTIONS[s];expect(i,s).toBeTruthy();
    for(const l of LANGS){expect(i.title[l].length).toBeGreaterThan(2);expect(i.what[l].length,`${s}.what.${l}`).toBeGreaterThan(30);expect(i.howto[l].length,`${s}.howto.${l}`).toBeGreaterThan(20);}

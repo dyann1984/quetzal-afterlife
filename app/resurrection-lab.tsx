@@ -6,9 +6,11 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {buildLabExamples,runLab,type LabExample,type LabRun,type LabStage,type Bi,type Confidence} from '../lib/filerec/lab';
 import {exportRecovered,reportJson} from '../lib/filerec';
+import {explainReport} from '../lib/filerec/explain';
 import {useUi} from '../lib/i18n';
 
 const UI={
+ explain:{es:'Quetzalito explica (reglas deterministas, no IA generativa)',en:'Quetzalito explains (deterministic rules, not generative AI)'},natureDamage:{es:'Naturaleza del daño',en:'Nature of the damage'},methodUsed:{es:'Método aplicado',en:'Method applied'},reading:{es:'Cómo leer el resultado',en:'How to read the result'},nextSteps:{es:'Siguientes pasos',en:'Next steps'},
  kicker:{es:'RESURRECTION LAB / PRUÉBALO TÚ MISMO',en:'RESURRECTION LAB / TRY IT YOURSELF'},
  intro:{es:'Seis archivos dañados de forma controlada, cada uno con su original de referencia. Pulsa «Ejecutar análisis»: el motor procesa los bytes reales en tu navegador (nada se sube) y el resultado se compara con el original. Los datos son sintéticos y el laboratorio incluye un caso que NO se puede recuperar, para demostrar que el diagnóstico es honesto.',en:'Six deliberately damaged files, each with its reference original. Press “Run analysis”: the engine processes the real bytes in your browser (nothing is uploaded) and the result is compared with the original. The data is synthetic and the lab includes one case that CANNOT be recovered, to show the diagnosis is honest.'},
  run:{es:'Ejecutar análisis',en:'Run analysis'},running:{es:'Procesando…',en:'Processing…'},runAll:{es:'Ejecutar los 6 ejemplos',en:'Run all 6 examples'},
@@ -65,6 +67,7 @@ function Result({run,lang}:{run:LabRun;lang:'es'|'en'}){
  const ex=run.example,rep=run.report.repaired,L=(b:Bi)=>b[lang];
  const zip=useMemo(()=>exportRecovered(run.report),[run]);
  const fullJson=useMemo(()=>reportJson(run.report),[run]);
+ const ex2=useMemo(()=>explainReport(run.report),[run]);
  return <section className="lab-result" aria-live="polite" data-testid="lab-result">
   <div className={`lab-verdict conf-${run.confidence}`}>
    <div><span className="eyebrow">{L(UI.confidence)}</span><b className={`vstatus ${CONF_CLS[run.confidence]}`}>{L(CONF_LABEL[run.confidence])}</b></div>
@@ -76,6 +79,16 @@ function Result({run,lang}:{run:LabRun;lang:'es'|'en'}){
   {ex.view==='zip'&&<div className="tablewrap"><table><thead><tr><th>{lang==='es'?'Entrada':'Entry'}</th><th>{lang==='es'?'Tamaño':'Size'}</th><th>{lang==='es'?'Estado':'Status'}</th><th>{lang==='es'?'Base':'Basis'}</th></tr></thead><tbody>
    {run.report.items.filter(i=>i.kind==='entrada').map((i,k)=><tr key={k}><td>{i.name}</td><td>{i.size}</td><td><span className={`vstatus ${i.verified?'vstatus-ok':'vstatus-diff'}`}>{i.verified?L(UI.verified):L(UI.notVerified)}</span></td><td style={{fontSize:11}}>{i.basis}{i.partialBytes?` · ${lang==='es'?'prefijo legible':'readable prefix'}: ${i.partialBytes.length} B`:''}</td></tr>)}
   </tbody></table></div>}
+
+  <aside className="lab-explain" data-testid="lab-explain" aria-label={L(UI.explain)}>
+   <h3 style={{marginTop:0}}>{L(UI.explain)}</h3>
+   <p>{L(ex2.kind)}</p>
+   {ex2.damage.length>0&&<><h4>{L(UI.natureDamage)}</h4><ul>{ex2.damage.map((d,i)=><li key={i}>{L(d)}</li>)}</ul></>}
+   <h4>{L(UI.methodUsed)}</h4><p>{L(ex2.method)}</p>
+   <h4>{L(UI.reading)}</h4><p>{L(ex2.reading)}</p>
+   <h4>{L(UI.nextSteps)}</h4><ul>{ex2.next.map((d,i)=><li key={i}>{L(d)}</li>)}</ul>
+   <small>{L(ex2.source)}</small>
+  </aside>
 
   <h3>{L(UI.checks)}</h3>
   <ul className="lab-checks" data-testid="lab-checks">{run.checks.map((c,i)=><li key={i} className={c.ok?'ok':'bad'}><span aria-hidden>{c.ok?'✓':'✗'}</span><div><b>{L(c.label)}</b><small>{c.detail}</small></div></li>)}</ul>
