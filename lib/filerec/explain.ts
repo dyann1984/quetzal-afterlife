@@ -32,6 +32,14 @@ const DAMAGE: Record<string, Bi> = {
   recorrido_por_cabeceras: B('El índice no es utilizable; la lista de entradas se reconstruyó leyendo el archivo de principio a fin.', 'The index is unusable; the entry list was rebuilt by reading the file from start to end.'),
   demasiado_grande: B('El archivo supera el límite de tamaño y no se analizó.', 'The file exceeds the size limit and was not analysed.'),
   ejecutable_no_ejecutado: B('Es un programa: se identifica pero nunca se ejecuta.', 'It is a program: it is identified but never run.'),
+  sin_trailer: B('Falta la marca que cierra el archivo: la copia se cortó antes de terminar.', 'The mark that closes the file is missing: the copy was cut off before finishing.'),
+  bloque_truncado: B('Un bloque de datos se corta antes de terminar; lo anterior sigue siendo utilizable.', 'A data block is cut off before it ends; what came before is still usable.'),
+  bloque_desconocido: B('Hay bytes que no forman un bloque válido: la estructura se interrumpe ahí.', 'There are bytes that do not form a valid block: the structure is interrupted there.'),
+  sin_cuadros: B('No hay ningún cuadro de imagen completo.', 'There is no complete image frame.'),
+  data_truncado: B('El audio declarado es más largo que el que realmente contiene el archivo: está cortado.', 'The declared audio is longer than what the file actually contains: it is cut off.'),
+  sin_data: B('No hay datos de audio.', 'There is no audio data.'),
+  sin_fmt: B('Falta la descripción del formato de audio: sin ella no se puede interpretar.', 'The audio format description is missing: without it the audio cannot be interpreted.'),
+  offset_invalido: B('El punto donde empiezan los píxeles declarado en la cabecera cae fuera del archivo.', 'The point where pixels start, declared in the header, falls outside the file.'),
   sin_analizador: B('Se reconoce el formato, pero todavía no hay un analizador para él.', 'The format is recognised, but there is no analyser for it yet.'),
 };
 
@@ -54,7 +62,9 @@ export function explainReport(r: FileReport): Explanation {
       : B('No se pudo generar un archivo reparado; solo se extrajo lo verificable.', 'No repaired file could be generated; only what is verifiable was extracted.');
     reading = r.integrity === 'danado'
       ? B(`El contenido está completo (${verifiedItems} elemento(s) verificados) y los daños están en campos de control.`, `The content is complete (${verifiedItems} verified element(s)) and the damage is in control fields.`)
-      : B(`Recuperación parcial: ${verifiedItems} elemento(s) verificados; el resto se perdió o no se puede verificar.`, `Partial recovery: ${verifiedItems} verified element(s); the rest was lost or cannot be verified.`);
+      : verifiedItems === 0
+        ? B('Recuperación parcial: la estructura es válida y se conserva lo que había, pero el contenido (píxeles o muestras de audio) no tiene suma de comprobación, así que se marca como NO verificado. Lo ausente se perdió.', 'Partial recovery: the structure is valid and what existed is kept, but the content (pixels or audio samples) has no checksum, so it is marked NOT verified. What is missing is lost.')
+        : B(`Recuperación parcial: ${verifiedItems} elemento(s) verificados; el resto se perdió o no se puede verificar.`, `Partial recovery: ${verifiedItems} verified element(s); the rest was lost or cannot be verified.`);
     next = [B('Descarga el archivo recuperado y el informe JSON.', 'Download the recovered file and the JSON report.'), B('Compara su SHA-256 con el de un original si dispones de él.', 'Compare its SHA-256 with an original’s if you have one.'), B('Conserva el archivo dañado: una herramienta futura podría rescatar más.', 'Keep the damaged file: a future tool might rescue more.')];
   }
   const limits = r.limitations.length ? B(r.limitations.slice(0, 2).join(' '), r.limitations.slice(0, 2).join(' ')) : B('Sin limitaciones adicionales registradas.', 'No additional limitations recorded.');

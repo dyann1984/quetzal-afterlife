@@ -27,8 +27,8 @@ describe('compresor Deflate propio', () => {
 describe('RESURRECTION LAB — ejemplos reproducibles', () => {
   it('son deterministas y cada dañado difiere del original', async () => {
     const a = buildLabExamples(), b = buildLabExamples();
-    expect(a).toHaveLength(6);
-    for (let i = 0; i < 6; i++) {
+    expect(a).toHaveLength(9);
+    for (let i = 0; i < 9; i++) {
       expect(await sha256Hex(a[i].damaged.bytes)).toBe(await sha256Hex(b[i].damaged.bytes));
       expect(await sha256Hex(a[i].original.bytes)).toBe(await sha256Hex(b[i].original.bytes));
       expect(await sha256Hex(a[i].damaged.bytes)).not.toBe(await sha256Hex(a[i].original.bytes));
@@ -37,7 +37,7 @@ describe('RESURRECTION LAB — ejemplos reproducibles', () => {
   it('los originales se analizan como íntegros (sin daño de fábrica)', async () => {
     for (const ex of buildLabExamples().filter(e => e.id !== 'png-noise')) expect((await analyzeFile(ex.original.bytes, ex.original.name)).integrity, ex.id).toBe('integro');
   });
-  for (const id of ['png-crc', 'txt-partial', 'docx-signature', 'zip-deflate', 'png-noise', 'png-partial']) {
+  for (const id of ['png-crc', 'txt-partial', 'docx-signature', 'zip-deflate', 'png-noise', 'png-partial', 'gif-truncated', 'bmp-truncated', 'wav-truncated']) {
     it(`ejecución real: ${id} — todas las comprobaciones contra el original pasan`, async () => {
       const ex = buildLabExamples().find(e => e.id === id)!, stages: number[] = [], run = await runLab(ex, s => stages.push(s.pct));
       expect(run.checks.length).toBeGreaterThan(0);
@@ -72,6 +72,19 @@ describe('RESURRECTION LAB — ejemplos reproducibles', () => {
   it('el ZIP exportado contiene el prefijo no verificado en una carpeta aparte', async () => {
     const run = await runLab(buildLabExamples()[3]), z = exportRecovered(run.report), txt = new TextDecoder('latin1').decode(z);
     expect(txt).toContain('parcial-no-verificado/'); expect(txt).toContain('recuperado/notas.txt');
+  });
+});
+
+describe('GIF / BMP / WAV del laboratorio', () => {
+  it('los originales tienen la estructura declarada (la decodificación independiente se comprueba en el navegador)', async () => {
+    const [gif, bmp, wav] = buildLabExamples().slice(6);
+    const g = await analyzeFile(gif.original.bytes, 'a.gif'), b = await analyzeFile(bmp.original.bytes, 'a.bmp'), w = await analyzeFile(wav.original.bytes, 'a.wav');
+    expect(g.meta).toMatchObject({ cuadros: 4, ancho: 96, alto: 72 });
+    expect(b.meta).toMatchObject({ ancho: 128, alto: 96, filasPresentes: 96 });
+    expect(w.meta).toMatchObject({ hz: 8000, bytesAudio: 24000 });
+  });
+  it('confianza BAJA: el contenido no tiene suma de comprobación y no se finge lo contrario', async () => {
+    for (const i of [6, 7, 8]) { const run = await runLab(buildLabExamples()[i]); expect(run.confidence, run.example.id).toBe('baja'); expect(run.report.integrity).toBe('parcial'); expect(run.recoveredSha).not.toBe(run.originalSha); }
   });
 });
 

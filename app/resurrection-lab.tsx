@@ -12,8 +12,8 @@ import {useUi,tm} from '../lib/i18n';
 const UI={
  explain:{es:'Quetzalito explica (reglas deterministas, no IA generativa)',en:'Quetzalito explains (deterministic rules, not generative AI)'},natureDamage:{es:'Naturaleza del daño',en:'Nature of the damage'},methodUsed:{es:'Método aplicado',en:'Method applied'},reading:{es:'Cómo leer el resultado',en:'How to read the result'},nextSteps:{es:'Siguientes pasos',en:'Next steps'},
  kicker:{es:'RESURRECTION LAB / PRUÉBALO TÚ MISMO',en:'RESURRECTION LAB / TRY IT YOURSELF'},
- intro:{es:'Seis archivos dañados de forma controlada, cada uno con su original de referencia. Pulsa «Ejecutar análisis»: el motor procesa los bytes reales en tu navegador (nada se sube) y el resultado se compara con el original. Los datos son sintéticos y el laboratorio incluye un caso que NO se puede recuperar, para demostrar que el diagnóstico es honesto.',en:'Six deliberately damaged files, each with its reference original. Press “Run analysis”: the engine processes the real bytes in your browser (nothing is uploaded) and the result is compared with the original. The data is synthetic and the lab includes one case that CANNOT be recovered, to show the diagnosis is honest.'},
- run:{es:'Ejecutar análisis',en:'Run analysis'},running:{es:'Procesando…',en:'Processing…'},runAll:{es:'Ejecutar los 6 ejemplos',en:'Run all 6 examples'},
+ intro:{es:'Nueve archivos dañados de forma controlada (PNG, texto, DOCX, ZIP, GIF, BMP y WAV), cada uno con su original de referencia. Pulsa «Ejecutar análisis»: el motor procesa los bytes reales en tu navegador (nada se sube) y el resultado se compara con el original. Los datos son sintéticos y el laboratorio incluye un caso que NO se puede recuperar, para demostrar que el diagnóstico es honesto.',en:'Nine deliberately damaged files (PNG, text, DOCX, ZIP, GIF, BMP and WAV), each with its reference original. Press “Run analysis”: the engine processes the real bytes in your browser (nothing is uploaded) and the result is compared with the original. The data is synthetic and the lab includes one case that CANNOT be recovered, to show the diagnosis is honest.'},
+ run:{es:'Ejecutar análisis',en:'Run analysis'},running:{es:'Procesando…',en:'Processing…'},runAll:{es:'Ejecutar los {n} ejemplos',en:'Run all {n} examples'},
  original:{es:'Original de referencia',en:'Reference original'},damaged:{es:'Archivo dañado',en:'Damaged file'},recovered:{es:'Recuperado',en:'Recovered'},
  download:{es:'Descargar',en:'Download'},problem:{es:'El problema',en:'The problem'},damageDone:{es:'Daño aplicado',en:'Damage applied'},expect:{es:'Qué debe ocurrir',en:'What should happen'},
  checks:{es:'Verificación contra el original',en:'Verification against the original'},confidence:{es:'Nivel de confianza',en:'Confidence level'},
@@ -22,7 +22,7 @@ const UI={
  dlRepaired:{es:'Descargar archivo recuperado',en:'Download recovered file'},dlZip:{es:'Paquete seguro (ZIP)',en:'Safe package (ZIP)'},dlReport:{es:'Informe JSON',en:'JSON report'},
  noRecovered:{es:'No hay archivo recuperado: el motor no inventa datos.',en:'There is no recovered file: the engine does not invent data.'},
  cantShow:{es:'El navegador no puede mostrar este archivo',en:'The browser cannot display this file'},
- summary:{es:'Resumen de los 6 ejemplos',en:'Summary of the 6 examples'},synthetic:{es:'SINTÉTICO',en:'SYNTHETIC'},
+ summary:{es:'Resumen de los {n} ejemplos',en:'Summary of the {n} examples'},synthetic:{es:'SINTÉTICO',en:'SYNTHETIC'},
  same:{es:'idéntico',en:'identical'},differs:{es:'distinto',en:'different'},
  notVerified:{es:'NO verificado',en:'NOT verified'},verified:{es:'verificado',en:'verified'},
  damagedRanges:{es:'Rangos dañados localizados',en:'Damaged ranges located'},bytes:{es:'bytes',en:'bytes'},
@@ -53,14 +53,19 @@ function BlobImg({src,alt,onError}:{src:string;alt:string;onError:()=>void}){
  // eslint-disable-next-line @next/next/no-img-element -- URL blob: next/image no puede optimizarla
  return <img src={src} alt={alt} onError={onError} width={256} height={192}/>;
 }
-export function Pic({bytes,label,lang}:{bytes?:Uint8Array;label:string;lang:'es'|'en'}){
- const url=useUrl(bytes,'image/png');const [badFor,setBadFor]=useState<Uint8Array|undefined>();
+export function Pic({bytes,label,lang,mime='image/png'}:{bytes?:Uint8Array;label:string;lang:'es'|'en';mime?:string}){
+ const url=useUrl(bytes,mime);const [badFor,setBadFor]=useState<Uint8Array|undefined>();
  const bad=!!bytes&&badFor===bytes;
  return <figure className="lab-pic"><figcaption>{label}</figcaption>
   {bytes?(bad?<div className="lab-broken" role="img" aria-label={UI.cantShow[lang]}><span>✕</span>{UI.cantShow[lang]}{bytes&&<code>{hex(bytes,24)}…</code>}</div>
    :url&&<BlobImg src={url} alt={label} onError={()=>setBadFor(bytes)}/>)
    :<div className="lab-broken"><span>∅</span>{UI.noRecovered[lang]}</div>}
  </figure>;
+}
+
+function AudioPlayer({label,bytes,mime,empty}:{label:string;bytes?:Uint8Array;mime:string;empty:string}){
+ const url=useUrl(bytes,mime);
+ return <figure className="lab-pic"><figcaption>{label}</figcaption>{url?<audio controls preload="metadata" src={url} aria-label={label}/>:<div className="lab-broken"><span>∅</span>{empty}</div>}</figure>;
 }
 
 function Result({run,lang}:{run:LabRun;lang:'es'|'en'}){
@@ -74,7 +79,8 @@ function Result({run,lang}:{run:LabRun;lang:'es'|'en'}){
    <p>{L(run.confidenceWhy)}</p>
   </div>
 
-  {ex.view==='image'&&<div className="lab-compare"><Pic bytes={ex.original.bytes} label={L(UI.original)} lang={lang}/><Pic bytes={ex.damaged.bytes} label={L(UI.damaged)} lang={lang}/><Pic bytes={rep?.bytes} label={L(UI.recovered)} lang={lang}/></div>}
+  {ex.view==='image'&&<div className="lab-compare"><Pic bytes={ex.original.bytes} label={L(UI.original)} lang={lang} mime={ex.mime}/><Pic bytes={ex.damaged.bytes} label={L(UI.damaged)} lang={lang} mime={ex.mime}/><Pic bytes={rep?.bytes} label={L(UI.recovered)} lang={lang} mime={ex.mime}/></div>}
+  {ex.view==='audio'&&<div className="lab-audio" data-testid="lab-audio">{([[UI.original,ex.original.bytes],[UI.damaged,ex.damaged.bytes],[UI.recovered,rep?.bytes]] as Array<[Bi,Uint8Array|undefined]>).map(([lbl,b],i)=><AudioPlayer key={i} label={L(lbl)} bytes={b} mime={ex.mime??'audio/wav'} empty={L(UI.noRecovered)}/>)}</div>}
   {ex.view==='text'&&<div className="lab-compare lab-text"><div><h4>{L(UI.damaged)}</h4><pre>{showText(ex.damaged.bytes)}</pre></div><div><h4>{L(UI.recovered)}</h4><pre>{rep?showText(rep.bytes):L(UI.noRecovered)}</pre></div></div>}
   {ex.view==='zip'&&<div className="tablewrap"><table><thead><tr><th>{lang==='es'?'Entrada':'Entry'}</th><th>{lang==='es'?'Tamaño':'Size'}</th><th>{lang==='es'?'Estado':'Status'}</th><th>{lang==='es'?'Base':'Basis'}</th></tr></thead><tbody>
    {run.report.items.filter(i=>i.kind==='entrada').map((i,k)=><tr key={k}><td>{i.name}</td><td>{i.size}</td><td><span className={`vstatus ${i.verified?'vstatus-ok':'vstatus-diff'}`}>{i.verified?L(UI.verified):L(UI.notVerified)}</span></td><td style={{fontSize:11}}>{tm(i.basis)}{i.partialBytes?` · ${lang==='es'?'prefijo legible':'readable prefix'}: ${i.partialBytes.length} B`:''}</td></tr>)}
@@ -147,12 +153,12 @@ export default function ResurrectionLab({initialId}:{initialId?:string}){
     {runs[e.id]&&<span className="lab-done" title={L(CONF_LABEL[runs[e.id].confidence])}>✓ {L(CONF_LABEL[runs[e.id].confidence])}</span>}
    </button>)}
   </div>
-  <p><button className="secondary" style={{marginTop:0}} disabled={!!busy} onClick={execAll} data-testid="lab-run-all">{L(UI.runAll)}</button></p>
+  <p><button className="secondary" style={{marginTop:0}} disabled={!!busy} onClick={execAll} data-testid="lab-run-all">{L(UI.runAll).replace('{n}',String(examples.length))}</button></p>
 
   <article className="lab-panel" aria-labelledby="lab-title">
    <header><span className="demo-badge">{L(UI.synthetic)}</span><h2 id="lab-title">{ex.n}. {L(ex.title)}</h2></header>
    <div className="lab-info">
-    <div><h4>{L(UI.problem)}</h4><p>{L(ex.problem)}</p><h4>{L(UI.damageDone)}</h4><ul>{ex.damage.map((d,i)=><li key={i}>{L(d)}</li>)}</ul><h4>{L(UI.expect)}</h4><p>{L(ex.expectation)}</p></div>
+    <div><h3>{L(UI.problem)}</h3><p>{L(ex.problem)}</p><h3>{L(UI.damageDone)}</h3><ul>{ex.damage.map((d,i)=><li key={i}>{L(d)}</li>)}</ul><h3>{L(UI.expect)}</h3><p>{L(ex.expectation)}</p></div>
     <div className="lab-files">
      <div><b>{L(UI.original)}</b><code>{ex.original.name}</code><small>{kb(ex.original.bytes.length)}</small><button className="link-btn" onClick={()=>save(ex.original.name,ex.original.bytes,'application/octet-stream')}>{L(UI.download)}</button></div>
      <div><b>{L(UI.damaged)}</b><code>{ex.damaged.name}</code><small>{kb(ex.damaged.bytes.length)}</small><button className="link-btn" onClick={()=>save(ex.damaged.name,ex.damaged.bytes,'application/octet-stream')} data-testid="lab-dl-damaged">{L(UI.download)}</button></div>
@@ -164,7 +170,7 @@ export default function ResurrectionLab({initialId}:{initialId?:string}){
    {run&&<Result run={run} lang={lang}/>}
   </article>
 
-  {Object.keys(runs).length===examples.length&&<section className="lab-summary" data-testid="lab-summary"><h3>{L(UI.summary)}</h3><div className="tablewrap"><table><tbody>
+  {Object.keys(runs).length===examples.length&&<section className="lab-summary" data-testid="lab-summary"><h3>{L(UI.summary).replace('{n}',String(examples.length))}</h3><div className="tablewrap"><table><tbody>
    {examples.map(e=>{const r=runs[e.id];const ok=r.checks.every(c=>c.ok);return <tr key={e.id}><td>{e.n}. {L(e.title)}</td><td><span className={`vstatus ${CONF_CLS[r.confidence]}`}>{L(CONF_LABEL[r.confidence])}</span></td><td>{ok?'✓':'✗'} {r.checks.filter(c=>c.ok).length}/{r.checks.length}</td></tr>;})}
   </tbody></table></div></section>}
  </div>;

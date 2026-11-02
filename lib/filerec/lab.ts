@@ -17,7 +17,9 @@ export type LabOutcome = 'exact' | 'partial' | 'honest-fail';
 export interface LabExample {
   id: string; n: number; title: Bi; problem: Bi; damage: Bi[]; expectation: Bi; outcome: LabOutcome;
   /** formato visual para la comparación antes/después */
-  view: 'image' | 'text' | 'zip' | 'bytes';
+  view: 'image' | 'text' | 'zip' | 'bytes' | 'audio';
+  /** tipo MIME con el que el navegador muestra/reproduce (por defecto image/png) */
+  mime?: string;
   original: { name: string; bytes: Uint8Array }; damaged: { name: string; bytes: Uint8Array };
 }
 
@@ -98,11 +100,63 @@ function makeNoise() {
   return { original, damaged: d };
 }
 
+// ─── GIF / BMP / WAV sintéticos (válidos: los decodifica el navegador) ───────
+const le16 = (v: number) => [v & 0xff, (v >>> 8) & 0xff];
+const le32 = (v: number) => [v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff];
+const GIF_W = 96, GIF_H = 72, GIF_FRAMES = 4;
+
+/** LZW de GIF con código mínimo 8: cada píxel va como literal y se emite «clear» cada 250 códigos, así el ancho de código nunca crece (9 bits). */
+function gifLzw(px: Uint8Array): Uint8Array {
+  const out: number[] = []; let acc = 0, nb = 0;
+  const put = (code: number) => { acc |= code << nb; nb += 9; while (nb >= 8) { out.push(acc & 0xff); acc >>>= 8; nb -= 8; } };
+  for (let i = 0; i < px.length; i++) { if (i % 250 === 0) put(256); put(px[i]); }
+  put(257); if (nb > 0) out.push(acc & 0xff);
+  const blocks: number[] = [8];
+  for (let o = 0; o < out.length; o += 255) { const n = Math.min(255, out.length - o); blocks.push(n, ...out.slice(o, o + n)); }
+  blocks.push(0); return Uint8Array.from(blocks);
+}
+function makeGif() {
+  const head: number[] = [...new TextEncoder().encode('GIF89a'), ...le16(GIF_W), ...le16(GIF_H), 0xf7, 0, 0];
+  for (let i = 0; i < 256; i++) head.push(i < 216 ? Math.floor(i / 36) * 51 : 0, i < 216 ? (Math.floor(i / 6) % 6) * 51 : 0, i < 216 ? (i % 6) * 51 : 0);
+  const com = new TextEncoder().encode('QUETZAL AFTERLIFE Lab');
+  head.push(0x21, 0xff, 0x0b, ...new TextEncoder().encode('NETSCAPE2.0'), 3, 1, 0, 0, 0, 0x21, 0xfe, com.length, ...com, 0);
+  const frames: Uint8Array[] = [];
+  for (let f = 0; f < GIF_FRAMES; f++) {
+    const raw = emblemRaw(GIF_W, GIF_H, [0.46, 0.56, 0.66, 0.56][f]), px = new Uint8Array(GIF_W * GIF_H), q = (c: number) => Math.min(5, Math.round(c / 51));
+    for (let y = 0; y < GIF_H; y++) for (let x = 0; x < GIF_W; x++) { const o = y * (1 + GIF_W * 3) + 1 + x * 3; px[y * GIF_W + x] = q(raw[o]) * 36 + q(raw[o + 1]) * 6 + q(raw[o + 2]); }
+    frames.push(concat([Uint8Array.of(0x21, 0xf9, 4, 0, ...le16(18), 0, 0, 0x2c, 0, 0, 0, 0, ...le16(GIF_W), ...le16(GIF_H), 0), gifLzw(px)]));
+  }
+  const header = Uint8Array.from(head), original = concat([header, ...frames, Uint8Array.of(0x3b)]);
+  const cut = header.length + frames[0].length + frames[1].length + Math.floor(frames[2].length * 0.4);
+  return { original, damaged: original.slice(0, cut), frames: GIF_FRAMES, kept: 2 };
+}
+
+const BMP_W = 128, BMP_H = 96, BMP_ROW = Math.ceil((BMP_W * 24) / 32) * 4;
+function makeBmp() {
+  const raw = emblemRaw(BMP_W, BMP_H, 0.6), px = new Uint8Array(BMP_ROW * BMP_H);
+  for (let y = 0; y < BMP_H; y++) for (let x = 0; x < BMP_W; x++) { const o = y * (1 + BMP_W * 3) + 1 + x * 3, d = (BMP_H - 1 - y) * BMP_ROW + x * 3; px[d] = raw[o + 2]; px[d + 1] = raw[o + 1]; px[d + 2] = raw[o]; }
+  const size = 54 + px.length;
+  const original = concat([Uint8Array.of(0x42, 0x4d, ...le32(size), 0, 0, 0, 0, ...le32(54), ...le32(40), ...le32(BMP_W), ...le32(BMP_H), ...le16(1), ...le16(24), ...le32(0), ...le32(px.length), ...le32(2835), ...le32(2835), ...le32(0), ...le32(0)), px]);
+  return { original, damaged: original.slice(0, 54 + BMP_ROW * 60 + 100) };
+}
+
+const WAV_RATE = 8000, WAV_SECONDS = 1.5;
+function makeWav() {
+  const n = WAV_RATE * WAV_SECONDS, data = new Uint8Array(n * 2), dv = new DataView(data.buffer), notes = [392, 494, 587, 784, 988, 784];
+  for (let i = 0; i < n; i++) {
+    const t = i / WAV_RATE, k = Math.min(notes.length - 1, Math.floor(t / 0.25)), local = t - k * 0.25, env = Math.exp(-local * 6) * Math.min(1, local * 400);
+    dv.setInt16(i * 2, Math.round(9000 * env * (Math.sin(2 * Math.PI * notes[k] * t) + 0.35 * Math.sin(4 * Math.PI * notes[k] * t))), true);
+  }
+  const original = concat([Uint8Array.of(...new TextEncoder().encode('RIFF'), ...le32(36 + data.length), ...new TextEncoder().encode('WAVEfmt '), ...le32(16), ...le16(1), ...le16(1), ...le32(WAV_RATE), ...le32(WAV_RATE * 2), ...le16(2), ...le16(16), ...new TextEncoder().encode('data'), ...le32(data.length)), data]);
+  return { original, damaged: original.slice(0, 44 + Math.floor(data.length * 0.55) + 1) };
+}
+
 export function buildLabExamples(): LabExample[] {
   const img = pngFromRaw(emblemRaw(128, 96, 0.62), 128, 96, 6), pngCrc = img.slice(), co = chunkOffsets(img), idats = co.filter(c => c.type === 'IDAT');
   xor(pngCrc, co[0].offset + 8 + 13, 2); xor(pngCrc, idats[1].offset + 8 + idats[1].length, 1);   // CRC del IHDR y del 2.º IDAT
   const txt = makeText(), docx = makeDocx(), zip = makeZip(), noise = makeNoise();
   const img2 = pngFromRaw(emblemRaw(128, 96, 0.55), 128, 96, 16), partial = img2.slice(0, Math.floor(img2.length * 0.6));
+  const gif = makeGif(), bmp = makeBmp(), wav = makeWav();
   return [
     { id: 'png-crc', n: 1, view: 'image', outcome: 'exact', original: { name: 'emblema.png', bytes: img }, damaged: { name: 'emblema-danado.png', bytes: pngCrc },
       title: B('PNG con daño estructural reparable', 'PNG with repairable structural damage'),
@@ -134,6 +188,21 @@ export function buildLabExamples(): LabExample[] {
       problem: B('La descarga se cortó al 60 %. Faltan el final del flujo de imagen, el Adler-32 y el IEND.', 'The download was cut at 60 %. The end of the image stream, the Adler-32 and the IEND are missing.'),
       damage: [B('archivo truncado al 60 % de su longitud', 'file truncated at 60 % of its length')],
       expectation: B('Recuperación parcial: solo las filas cuyos chunks IDAT están completos y con CRC válido. Las filas restantes no existen en el archivo y no se inventan.', 'Partial recovery: only the rows whose IDAT chunks are complete with a valid CRC. The remaining rows do not exist in the file and are not invented.') },
+    { id: 'gif-truncated', n: 7, view: 'image', mime: 'image/gif', outcome: 'partial', original: { name: 'animacion.gif', bytes: gif.original }, damaged: { name: 'animacion-truncada.gif', bytes: gif.damaged },
+      title: B('GIF animado cortado a mitad de un cuadro', 'Animated GIF cut off mid-frame'),
+      problem: B(`Una animación de ${gif.frames} cuadros se cortó dentro del tercero: faltan el resto de los datos y el terminador.`, `A ${gif.frames}-frame animation was cut off inside the third frame: the rest of the data and the trailer are missing.`),
+      damage: [B('archivo cortado en el 40 % del tercer cuadro', 'file cut at 40 % of the third frame')],
+      expectation: B(`Recuperación parcial: se conservan los ${gif.kept} cuadros completos y se añade el terminador. Los píxeles no se decodifican ni se marcan verificados; el navegador es quien los muestra.`, `Partial recovery: the ${gif.kept} complete frames are kept and the trailer is added. Pixels are not decoded or marked verified; the browser is what displays them.`) },
+    { id: 'bmp-truncated', n: 8, view: 'image', mime: 'image/bmp', outcome: 'partial', original: { name: 'emblema.bmp', bytes: bmp.original }, damaged: { name: 'emblema-truncado.bmp', bytes: bmp.damaged },
+      title: B('BMP truncado: faltan filas', 'Truncated BMP: rows are missing'),
+      problem: B(`La copia se interrumpió: de ${BMP_H} filas solo llegaron 60 completas y un fragmento. Algunos visores lo rechazan o lo muestran incompleto; el archivo ya no coincide con el tamaño que declara.`, `The copy was interrupted: of ${BMP_H} rows only 60 complete ones and a fragment arrived. Some viewers reject it or show it incomplete; the file no longer matches the size it declares.`),
+      damage: [B('archivo cortado tras 60 filas y 100 bytes de la siguiente', 'file cut after 60 rows and 100 bytes of the next one')],
+      expectation: B('Recuperación parcial: las filas presentes se conservan idénticas; las que faltan se rellenan con ceros (negro) y se rotulan como relleno, no como datos recuperados.', 'Partial recovery: the rows present are kept identical; the missing ones are filled with zeros (black) and labelled as filler, not recovered data.') },
+    { id: 'wav-truncated', n: 9, view: 'audio', mime: 'audio/wav', outcome: 'partial', original: { name: 'campanilla.wav', bytes: wav.original }, damaged: { name: 'campanilla-truncada.wav', bytes: wav.damaged },
+      title: B('Audio WAV cortado', 'Truncated WAV audio'),
+      problem: B(`Una grabación de ${WAV_SECONDS} s (8 kHz, 16 bits) se cortó al 55 %, en mitad de una muestra. Los tamaños declarados ya no coinciden con el archivo.`, `A ${WAV_SECONDS} s recording (8 kHz, 16 bit) was cut at 55 %, in the middle of a sample. The declared sizes no longer match the file.`),
+      damage: [B('archivo cortado al 55 % del audio, con un byte de una muestra a medias', 'file cut at 55 % of the audio, leaving half a sample byte')],
+      expectation: B('Recuperación parcial: se recorta a muestras completas y se corrigen los tamaños RIFF y data. Puedes escuchar el original y el recuperado: lo ausente no se inventa.', 'Partial recovery: trimmed to whole samples and the RIFF and data sizes are corrected. You can listen to the original and the recovered: what is missing is not invented.') },
   ];
 }
 
@@ -201,6 +270,23 @@ export async function runLab(ex: LabExample, onStage?: (s: LabStage) => void): P
       add(rows > 0 && rows < h, `Se recuperan ${rows} de ${h} filas (parcial)`, `${rows} of ${h} rows are recovered (partial)`, `${((rows / Math.max(h, 1)) * 100).toFixed(1)} %`);
       add(rr.length === rows * rb && eq(rr, orr.subarray(0, rows * rb)), 'Las filas recuperadas son idénticas a las del original', 'The recovered rows are identical to the original’s', `${rows} filas × ${rb} B`);
       add(!!rep && rep.structureVerified, 'El PNG reparado se re-analiza como íntegro', 'The repaired PNG re-analyses as intact', rep?.name ?? '—');
+    } else if (ex.id === 'gif-truncated') {
+      const g = makeGif(), n = rep?.bytes.length ?? 0;
+      add(Number(report.meta?.cuadros) === g.kept, `Se conservan ${g.kept} de ${g.frames} cuadros completos`, `${g.kept} of ${g.frames} complete frames are kept`, `${report.meta?.cuadros ?? '?'} cuadros`);
+      add(!!rep && eq(rep.bytes.subarray(0, n - 1), ex.original.bytes.subarray(0, n - 1)) && rep.bytes[n - 1] === 0x3b, 'Los bytes conservados son idénticos al original y solo se añade el terminador', 'The kept bytes are identical to the original and only the trailer is added', `${n} B`);
+      add(!!rep && rep.structureVerified, 'El GIF reparado se re-analiza como íntegro', 'The repaired GIF re-analyses as intact', rep?.name ?? '—');
+    } else if (ex.id === 'bmp-truncated') {
+      const rows = Number(report.meta?.filasPresentes ?? 0), end = 54 + rows * BMP_ROW;
+      add(rows === 60, `Se detectan ${rows} de ${BMP_H} filas presentes`, `${rows} of ${BMP_H} rows are detected as present`, `${((rows / BMP_H) * 100).toFixed(1)} %`);
+      add(!!rep && eq(rep.bytes.subarray(6, end), ex.original.bytes.subarray(6, end)), 'Las filas presentes son idénticas al original', 'The rows present are identical to the original', `${rows} filas × ${BMP_ROW} B`);
+      add(!!rep && rep.bytes.subarray(end).every(v => v === 0), 'Las filas ausentes son relleno de ceros, no datos inventados', 'The missing rows are zero filler, not invented data', rep ? `${rep.bytes.length - end} B de relleno` : '—');
+      add(!!rep && rep.structureVerified, 'El BMP reparado se re-analiza como íntegro', 'The repaired BMP re-analyses as intact', rep?.name ?? '—');
+    } else if (ex.id === 'wav-truncated') {
+      const used = Number(report.meta?.bytesAudio ?? 0), r = rep?.bytes;
+      add(used > 0 && used % 2 === 0 && used < ex.original.bytes.length - 44, `Se recuperan ${used} B de audio (muestras completas)`, `${used} B of audio are recovered (whole samples)`, `${(used / (WAV_RATE * 2)).toFixed(2)} s de ${WAV_SECONDS} s`);
+      add(!!r && eq(r.subarray(44), ex.original.bytes.subarray(44, 44 + used)), 'Las muestras recuperadas son idénticas a las del original', 'The recovered samples are identical to the original’s', '—');
+      add(!!r && new DataView(r.buffer, r.byteOffset).getUint32(40, true) === used && new DataView(r.buffer, r.byteOffset).getUint32(4, true) === r.length - 8, 'Los tamaños RIFF y data declarados coinciden con el archivo reparado', 'The declared RIFF and data sizes match the repaired file', '—');
+      add(!!rep && rep.structureVerified, 'El WAV reparado se re-analiza como íntegro', 'The repaired WAV re-analyses as intact', rep?.name ?? '—');
     }
   });
   const c = confidenceOf(report);
