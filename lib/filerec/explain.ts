@@ -5,6 +5,7 @@
  */
 import type { FileReport } from './types';
 import type { Bi } from './lab';
+import { translateMessage } from '../i18n/msgs';
 
 const B = (es: string, en: string): Bi => ({ es, en });
 export interface Explanation { kind: Bi; damage: Bi[]; method: Bi; reading: Bi; limits: Bi; next: Bi[]; source: Bi }
@@ -36,7 +37,8 @@ const DAMAGE: Record<string, Bi> = {
 
 export function explainReport(r: FileReport): Explanation {
   const damage = [...new Set(r.findings.map(f => f.code))].map(c => DAMAGE[c]).filter((x): x is Bi => !!x);
-  const kind = B(`Tipo probable: ${r.label} (confianza de identificación ${r.confidence}). Se decidió por: ${r.signals.join('; ')}.`, `Probable type: ${r.label} (identification confidence ${r.confidence}). Decided by: ${r.signals.join('; ')}.`);
+  const kind = B(`Tipo probable: ${r.label} (confianza de identificación ${r.confidence}). Se decidió por: ${r.signals.join('; ')}.`,
+    `Probable type: ${translateMessage(r.label)} (identification confidence ${translateMessage(r.confidence)}). Decided by: ${r.signals.map(translateMessage).join('; ')}.`);
   const rep = r.repaired, verifiedItems = r.items.filter(i => i.verified && i.kind !== 'metadatos').length;
   let method: Bi, reading: Bi, next: Bi[];
   if (r.integrity === 'integro') {

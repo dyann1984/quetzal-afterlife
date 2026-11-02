@@ -7,7 +7,7 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {buildLabExamples,runLab,type LabExample,type LabRun,type LabStage,type Bi,type Confidence} from '../lib/filerec/lab';
 import {exportRecovered,reportJson} from '../lib/filerec';
 import {explainReport} from '../lib/filerec/explain';
-import {useUi} from '../lib/i18n';
+import {useUi,tm} from '../lib/i18n';
 
 const UI={
  explain:{es:'Quetzalito explica (reglas deterministas, no IA generativa)',en:'Quetzalito explains (deterministic rules, not generative AI)'},natureDamage:{es:'Naturaleza del daño',en:'Nature of the damage'},methodUsed:{es:'Método aplicado',en:'Method applied'},reading:{es:'Cómo leer el resultado',en:'How to read the result'},nextSteps:{es:'Siguientes pasos',en:'Next steps'},
@@ -77,10 +77,10 @@ function Result({run,lang}:{run:LabRun;lang:'es'|'en'}){
   {ex.view==='image'&&<div className="lab-compare"><Pic bytes={ex.original.bytes} label={L(UI.original)} lang={lang}/><Pic bytes={ex.damaged.bytes} label={L(UI.damaged)} lang={lang}/><Pic bytes={rep?.bytes} label={L(UI.recovered)} lang={lang}/></div>}
   {ex.view==='text'&&<div className="lab-compare lab-text"><div><h4>{L(UI.damaged)}</h4><pre>{showText(ex.damaged.bytes)}</pre></div><div><h4>{L(UI.recovered)}</h4><pre>{rep?showText(rep.bytes):L(UI.noRecovered)}</pre></div></div>}
   {ex.view==='zip'&&<div className="tablewrap"><table><thead><tr><th>{lang==='es'?'Entrada':'Entry'}</th><th>{lang==='es'?'Tamaño':'Size'}</th><th>{lang==='es'?'Estado':'Status'}</th><th>{lang==='es'?'Base':'Basis'}</th></tr></thead><tbody>
-   {run.report.items.filter(i=>i.kind==='entrada').map((i,k)=><tr key={k}><td>{i.name}</td><td>{i.size}</td><td><span className={`vstatus ${i.verified?'vstatus-ok':'vstatus-diff'}`}>{i.verified?L(UI.verified):L(UI.notVerified)}</span></td><td style={{fontSize:11}}>{i.basis}{i.partialBytes?` · ${lang==='es'?'prefijo legible':'readable prefix'}: ${i.partialBytes.length} B`:''}</td></tr>)}
+   {run.report.items.filter(i=>i.kind==='entrada').map((i,k)=><tr key={k}><td>{i.name}</td><td>{i.size}</td><td><span className={`vstatus ${i.verified?'vstatus-ok':'vstatus-diff'}`}>{i.verified?L(UI.verified):L(UI.notVerified)}</span></td><td style={{fontSize:11}}>{tm(i.basis)}{i.partialBytes?` · ${lang==='es'?'prefijo legible':'readable prefix'}: ${i.partialBytes.length} B`:''}</td></tr>)}
   </tbody></table></div>}
 
-  <aside className="lab-explain" data-testid="lab-explain" aria-label={L(UI.explain)}>
+  <section className="lab-explain" data-testid="lab-explain" aria-label={L(UI.explain)}>
    <h3 style={{marginTop:0}}>{L(UI.explain)}</h3>
    <p>{L(ex2.kind)}</p>
    {ex2.damage.length>0&&<><h4>{L(UI.natureDamage)}</h4><ul>{ex2.damage.map((d,i)=><li key={i}>{L(d)}</li>)}</ul></>}
@@ -88,7 +88,7 @@ function Result({run,lang}:{run:LabRun;lang:'es'|'en'}){
    <h4>{L(UI.reading)}</h4><p>{L(ex2.reading)}</p>
    <h4>{L(UI.nextSteps)}</h4><ul>{ex2.next.map((d,i)=><li key={i}>{L(d)}</li>)}</ul>
    <small>{L(ex2.source)}</small>
-  </aside>
+  </section>
 
   <h3>{L(UI.checks)}</h3>
   <ul className="lab-checks" data-testid="lab-checks">{run.checks.map((c,i)=><li key={i} className={c.ok?'ok':'bad'}><span aria-hidden>{c.ok?'✓':'✗'}</span><div><b>{L(c.label)}</b><small>{c.detail}</small></div></li>)}</ul>
@@ -101,9 +101,9 @@ function Result({run,lang}:{run:LabRun;lang:'es'|'en'}){
   </tbody></table></div>
 
   <h3>{L(UI.findings)}</h3>
-  <div className="inv-warnings">{run.report.findings.length===0&&<p className="inv-warn-line">—</p>}{run.report.findings.map((f,i)=><p key={i} className="inv-warn-line"><span className={`vstatus ${SEV_CLS[f.severity]}`}>{f.severity}</span> {f.message}{f.offset!==undefined?` (offset ${f.offset})`:''}</p>)}</div>
-  {run.report.damaged.length>0&&<><h3>{L(UI.damagedRanges)}</h3><div className="tablewrap"><table><thead><tr><th>{lang==='es'?'Bytes':'Bytes'}</th><th>{lang==='es'?'Sectores (512 B)':'Sectors (512 B)'}</th><th>{lang==='es'?'Motivo':'Reason'}</th></tr></thead><tbody>{run.report.damaged.slice(0,10).map((d,i)=><tr key={i}><td>{d.start} – {d.end}</td><td>{d.sectors?`${d.sectors[0]}–${d.sectors[1]}`:'—'}</td><td>{d.reason}</td></tr>)}</tbody></table></div></>}
-  {rep&&<p className={rep.structureVerified?'save-ok':'save-err'} role="note">{rep.structureVerified?'✓':'⚠'} {rep.note}</p>}
+  <div className="inv-warnings">{run.report.findings.length===0&&<p className="inv-warn-line">—</p>}{run.report.findings.map((f,i)=><p key={i} className="inv-warn-line"><span className={`vstatus ${SEV_CLS[f.severity]}`}>{f.severity}</span> {tm(f.message)}{f.offset!==undefined?` (offset ${f.offset})`:''}</p>)}</div>
+  {run.report.damaged.length>0&&<><h3>{L(UI.damagedRanges)}</h3><div className="tablewrap"><table><thead><tr><th>{lang==='es'?'Bytes':'Bytes'}</th><th>{lang==='es'?'Sectores (512 B)':'Sectors (512 B)'}</th><th>{lang==='es'?'Motivo':'Reason'}</th></tr></thead><tbody>{run.report.damaged.slice(0,10).map((d,i)=><tr key={i}><td>{d.start} – {d.end}</td><td>{d.sectors?`${d.sectors[0]}–${d.sectors[1]}`:'—'}</td><td>{tm(d.reason)}</td></tr>)}</tbody></table></div></>}
+  {rep&&<p className={rep.structureVerified?'save-ok':'save-err'} role="note">{rep.structureVerified?'✓':'⚠'} {tm(rep.note)}</p>}
 
   <div className="lab-actions">
    {rep&&<button className="primary" style={{marginTop:0}} onClick={()=>save(rep.name,rep.bytes,'application/octet-stream')}>{L(UI.dlRepaired)} · {rep.name}</button>}
@@ -111,7 +111,7 @@ function Result({run,lang}:{run:LabRun;lang:'es'|'en'}){
    <button className="secondary" style={{marginTop:0}} onClick={()=>save(`${ex.id}.informe.json`,fullJson,'application/json')}>{L(UI.dlReport)}</button>
   </div>
   <details><summary>{L(UI.stages)}</summary><ul className="lab-stages">{Object.entries(run.stageMs).map(([k,v])=><li key={k}><code>{k}</code> {v} ms</li>)}</ul></details>
-  {run.report.limitations.length>0&&<details><summary>{L(UI.limits)} ({run.report.limitations.length})</summary><ul style={{fontSize:12}}>{run.report.limitations.map((l,i)=><li key={i}>{l}</li>)}</ul></details>}
+  {run.report.limitations.length>0&&<details><summary>{L(UI.limits)} ({run.report.limitations.length})</summary><ul style={{fontSize:12}}>{run.report.limitations.map((l,i)=><li key={i}>{tm(l)}</li>)}</ul></details>}
   <details><summary>{L(UI.report)}</summary><pre className="lab-json">{fullJson}</pre></details>
  </section>;
 }

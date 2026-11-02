@@ -1,5 +1,27 @@
 /** Mensajes de File Recovery, de los escenarios sintéticos y del expediente (ver msgs.ts). */
 export const FILEREC_PAIRS:Array<[string,string]>=[
+ // ── reparación PNG / ZIP / texto y firma alterada (Resurrection Lab) ─────
+ ['La firma PNG de 8 bytes está alterada, pero el chunk IHDR sigue en su posición: la estructura es recuperable.','The 8-byte PNG signature is altered, but the IHDR chunk is still in place: the structure is recoverable.'],
+ ['firma PNG alterada','PNG signature altered'],['IHDR ausente o de longitud inválida: sin dimensiones no se puede interpretar la imagen.','IHDR missing or of invalid length: without dimensions the image cannot be interpreted.'],
+ ['CRC-32 del IHDR incorrecto: dimensiones sin confirmar','IHDR CRC-32 incorrect: dimensions unconfirmed'],
+ ['Los datos de imagen están íntegros (Adler-32 correcto y tamaño exacto de {}×{}); solo los campos de control (CRC, firma o cierre) están dañados.','The image data is intact (correct Adler-32 and exact size of {}×{}); only the control fields (CRC, signature or end marker) are damaged.'],
+ ['dimensiones coherentes con el flujo IDAT (Adler-32 correcto y tamaño exacto)','dimensions consistent with the IDAT stream (correct Adler-32 and exact size)'],['flujo IDAT completo con Adler-32 correcto y tamaño exacto','complete IDAT stream with correct Adler-32 and exact size'],
+ ['{}×{} px recuperables (100 % de la altura)','{}×{} px recoverable (100 % of the height)'],
+ ['PNG con la firma, los CRC-32 y el cierre IEND restituidos; los bytes de imagen no se tocan. Estructura, CRC-32 y Adler-32 verificados al re-analizarlo; no se comprobó con un visor externo.','PNG with the signature, CRC-32s and IEND end marker restored; the image bytes are not touched. Structure, CRC-32 and Adler-32 verified on re-analysis; it was not checked with an external viewer.'],
+ ['El CRC-32 del IHDR es incorrecto y los datos de imagen no permiten confirmar las dimensiones: no se recuperan filas.','The IHDR CRC-32 is incorrect and the image data does not allow the dimensions to be confirmed: no rows are recovered.'],['IHDR con CRC inválido','IHDR with invalid CRC'],
+ ['"{}": la firma de la cabecera local está alterada; el resto de la cabecera coincide con el directorio central.','“{}”: the local header signature is altered; the rest of the header matches the central directory.'],
+ ['{}: firma local alterada','{}: local signature altered'],['CRC-32 coincide (firma de cabecera local alterada y restituida)','CRC-32 matches (altered local header signature restored)'],
+ ['Se restituyeron {} firma(s) de cabecera local; el resto de los bytes no se tocó. Las {} entradas verifican su CRC-32 al releerlo; no se abrió con la aplicación de Office.','{} local header signature(s) were restored; the rest of the bytes was not touched. The {} entries verify their CRC-32 when re-read; it was not opened with the Office application.'],
+ ['{} byte(s) inválidos en {} rango(s) (nulos: {}); {} de {} línea(s) afectadas.','{} invalid byte(s) in {} range(s) (null: {}); {} of {} line(s) affected.'],['Se listan {} de {} rangos dañados.','{} of {} damaged ranges are listed.'],
+ ['{} bytes a cero','{} zeroed bytes'],['{} bytes inválidos','{} invalid bytes'],['{} bytes inválidos o de control','{} invalid or control bytes'],
+ ['UTF-8 estricto sin bytes inválidos ni de control en toda la línea','strict UTF-8 with no invalid or control bytes in the whole line'],
+ ['contienen bytes que no se pueden interpretar; lo legible de ellas se conserva en el texto reparado','they contain bytes that cannot be interpreted; what is readable of them is kept in the repaired text'],
+ ['No es UTF-8 válido y no contiene secuencias UTF-8: se interpreta como Windows-1252 (estimación, no confirmada).','It is not valid UTF-8 and contains no UTF-8 sequences: it is read as Windows-1252 (estimate, unconfirmed).'],
+ ['Texto UTF-8 con los {} byte(s) perdidos sustituidos por «�» (un marcador por rango). El contenido original de esos bytes no existe en el archivo y no se adivina. Decodifica como UTF-8 estricto.','UTF-8 text with the {} lost byte(s) replaced by “�” (one marker per range). The original content of those bytes does not exist in the file and is not guessed. It decodes as strict UTF-8.'],
+ ['Los bytes sobrescritos o a cero no contienen información: se marcan, no se reconstruyen.','Overwritten or zeroed bytes hold no information: they are marked, not reconstructed.'],
+ ['firma binaria alterada, pero el chunk IHDR (longitud 13) está en su posición de PNG','altered binary signature, but the IHDR chunk (length 13) is in its PNG position'],
+ ['firma binaria alterada, pero el directorio central ZIP (PK 01 02) y su cierre están íntegros','altered binary signature, but the ZIP central directory (PK 01 02) and its end record are intact'],
+ ['Texto','Text'],
  // ── carving / inflate / identify ────────────────────────────────────
  ['Presupuesto de tiempo agotado: el escaneo es parcial.','Time budget exhausted: the scan is partial.'],['Límite de {} candidatos alcanzado.','Limit of {} candidates reached.'],
  ['Solo archivos contiguos: no hay reensamblado de fragmentos ni lectura de sistemas de archivos.','Contiguous files only: no fragment reassembly and no file-system reading.'],['Un candidato es un hallazgo por firma; "recuperable" solo se afirma tras analizarlo.','A candidate is a signature hit; “recoverable” is only claimed after analysing it.'],

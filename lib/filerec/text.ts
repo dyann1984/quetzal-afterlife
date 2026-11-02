@@ -67,7 +67,7 @@ export function analyzeText(b: Uint8Array): AnalysisResult {
     dmg.push(damaged(s, e, `${e - s} ${kind}`));
   });
   if (bad.length > MAX_RANGES) findings.push({ severity: 'aviso', code: 'rangos_omitidos', message: `Se listan ${MAX_RANGES} de ${bad.length} rangos dañados.` });
-  if (bad.length) findings.push({ severity: 'dano', code: 'secuencias_invalidas', message: `${badBytes} byte(s) inválidos en ${bad.length} rango(s)${nulBytes ? `, ${nulBytes} de ellos nulos` : ''}; ${lines.length - okLines.length} de ${lines.length} línea(s) afectadas.` });
+  if (bad.length) findings.push({ severity: 'dano', code: 'secuencias_invalidas', message: `${badBytes} byte(s) inválidos en ${bad.length} rango(s) (nulos: ${nulBytes}); ${lines.length - okLines.length} de ${lines.length} línea(s) afectadas.` });
 
   const intactBytes = okLines.length ? Uint8Array.from(okLines.flatMap(l => Array.from(b.subarray(l.s, l.e)))) : new Uint8Array(0);
   const text = dec.decode(b.subarray(start));
