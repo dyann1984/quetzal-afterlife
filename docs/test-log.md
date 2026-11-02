@@ -101,3 +101,24 @@ Ejecutado: 242/242 pruebas (18 archivos; +55 sobre las 187 anteriores), tsc 0 er
 Nuevas: núcleo/inflate (10), analizadores + seguridad + carving (32), archivos reales (5), matriz de capacidades (8).
 Navegador (build de producción): sección File Recovery con 12 informes sintéticos + carving; logotipo real del proyecto (íntegro y truncado, reparado y verificado); «PNG» que es un ejecutable → marcado peligroso, no analizado; archivo de 9 MiB rechazado antes de leerlo; archivo vacío rechazado; móvil 375 px sin desbordamiento; regresión de las 12 secciones previas, holograma del Dashboard y experiencia de 6 etapas sin errores JS.
 No verificado: PDF, DOCX, XLSX, ZIP y DBF reales (no hay ninguno en el equipo; solo sintéticos); JPEG real solo estructural; sin decodificación de píxeles; sin sistemas de archivos; sin audio/video/ejecutables más allá de la firma.
+
+
+---
+
+## 2026-11-02 — Competition Winner Edition (rama `feat/competition-winner-edition`)
+
+Entorno: Windows 11, Node v22.23.2, npm 10.9.8.
+
+| Comprobación | Resultado | Evidencia |
+| --- | --- | --- |
+| Línea base antes de cambiar nada | PASS | 23 archivos, 309/309 pruebas; tsc limpio; build OK; lint 0 errores y 3 avisos |
+| Pruebas finales | PASS | 25 archivos, **329/329** (309 originales + 18 de `lab.test.ts` + 2 de `explain.test.ts`); una aserción original cambió de 13 a 14 secciones |
+| typecheck | PASS | `tsc --noEmit` sin salida |
+| lint | PASS | 0 errores, 0 avisos (los 3 `<img>` estáticos se justifican con `eslint-disable-next-line`: son el logo oficial y se conserva su render) |
+| build de producción | PASS | `next build` OK; rutas `/` y `/_not-found` estáticas |
+| E2E en navegador (build de producción, :4173) | PASS | 14 secciones del menú renderizan contenido, sin desbordes horizontales, sin errores de página; «Ejecutar los 6 ejemplos» → 6/6 con todas sus comprobaciones ✓ |
+| Móvil 375 px | PASS | sin desbordes en Dashboard y Lab; captura en `docs/capturas-lab/` |
+| ES/EN y tema claro | PASS (muestreo) | Lab en EN + tema claro verificado; aviso: algunos textos de la explicación seguían en español antes de añadir las traducciones (corregido) |
+| Demo guiada | PASS | 8 pasos recorridos; pasos 4–7 usan el motor real |
+| Lighthouse / axe | NO EJECUTADO | no hay herramienta instalada en este entorno; revisión manual: roles `tablist`, `progressbar`, `alert`, foco visible, `prefers-reduced-motion` |
+| SHA-256 | PASS | ejemplos 1 y 3: SHA-256 del reparado = SHA-256 del original (prueba automática y en navegador) |

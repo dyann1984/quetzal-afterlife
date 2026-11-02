@@ -1,33 +1,89 @@
 # QUETZAL AFTERLIFE
 ### The Digital Resurrection Engine
 
-Plataforma de recuperación digital que se ejecuta íntegramente en el navegador: importa evidencia CSV o DBF, reconstruye inventarios con trazabilidad por registro, los contrasta contra una referencia independiente, exporta los resultados (CSV/JSON) y guarda proyectos localmente.
+Live: https://quetzal-afterlife.vercel.app · Spanish README: [README.es.md](README.es.md)
 
-## Funciones
+QUETZAL recovers what is **verifiably** recoverable from damaged digital files and tells you plainly what is not. Everything runs in the browser: files are never uploaded.
 
-- **Nueva recuperación:** importación de CSV (máx. 2 MB) y DBF (máx. 4 MB), ambos con 10 000 registros como límite.
-- **Laboratorio:** reconstrucción de inventario. Cada dato indica fila de origen y clasificación (`recuperado`, `recuperado_borrado`, `desconocido`); la detección de campos es heurística y se avisa cuando no es de confianza alta.
-- **Verificación:** contraste contra una segunda fuente (coincidencias, discrepancias, ausentes).
-- **Archivo:** guardar, reabrir y eliminar proyectos en el almacenamiento local del navegador.
-- **Demo:** botón **▶ DEMO** con datos sintéticos claramente marcados. Guía en [docs/demo-jueces.md](docs/demo-jueces.md).
+> **Honesty contract.** An item is marked *verified* only when an objective check backs it (CRC-32, Adler-32, SHA-256, re-analysis of the repair). Overwritten or missing data is reported as lost, never invented. Nothing here claims universal recovery.
 
-## Ejecutar
+## Try it in 30 seconds
 
-Requiere Node.js 22.12 o superior de la serie 22, o las series 24 y 26+.
+1. Open the app and press **TRY QUETZAL NOW** (Dashboard) → **Resurrection Lab**.
+2. Pick one of six damaged files, press **Run analysis**.
+3. Watch the real engine run, compare before/after, check the SHA-256 against the original, and download the recovered file and the technical report.
+
+Prefer a guided tour? Press **▶ Guided demo · 3 min** on the Dashboard. Steps 4–7 execute the real engine; nothing is pre-recorded.
+
+## Resurrection Lab: the six examples
+
+Every example is generated deterministically by code (original + damaged file), so results are reproducible and the verdict is checked against the original.
+
+| # | Case | What happens | Expected outcome |
+|---|---|---|---|
+| 1 | PNG with altered CRC-32 fields | Pixels are intact (Adler-32 verifies); only control fields are broken | Full recovery, **byte-identical** to the original (SHA-256 match) |
+| 2 | Partially corrupted UTF-8 text | Zeroed bytes, garbage, a split character in 4 of 13 lines | Partial: 9 intact lines recovered identically; losses marked with `�` |
+| 3 | DOCX with altered `PK` signatures | Identified through the central directory; Deflate entries verify CRC-32 | Full recovery, byte-identical |
+| 4 | ZIP with one damaged Deflate stream | 2 of 3 entries verify; the damaged one yields only a readable prefix | Partial; prefix labelled **NOT verified** |
+| 5 | PNG overwritten with random data | No header, no image data, entropy ≈ 8 bits/byte | **Unrecoverable**: no repaired file is offered |
+| 6 | PNG truncated at 60 % | Rows from complete, CRC-valid IDAT chunks are decoded | Partial: recovered rows identical to the original's |
+
+The "explanation" panel is produced by deterministic rules from the technical report. **It is not generative AI** and calls no external service.
+
+## Supported formats (what is real today)
+
+| Format | Identification | Integrity checks | Repair / recovery | Documented limits |
+|---|---|---|---|---|
+| PNG | signature, or IHDR position if the signature is damaged | CRC-32 per chunk, IHDR, own Inflate + Adler-32, filter bytes | restores CRC fields, signature and IEND when data verifies; recovers the intact row prefix after truncation/corruption | Adam7 interlaced not decoded; image is not rendered by the engine |
+| JPEG | signature | marker structure, segment lengths, EOI | appends EOI to truncated files | **no pixel decoding**; recovered pixels are not verified |
+| PDF | `%PDF-` within 1 KiB | xref/startxref, object boundaries, Flate Adler-32 | rebuilds xref, extracts text (Tj/TJ) from intact streams | no ObjStm, encryption or compressed xref |
+| ZIP / DOCX / XLSX | signature, or central directory if signature damaged | CRC-32 per entry, central directory vs local headers | restores local signatures in place; rebuilds a ZIP from verified entries; readable prefix of a broken Deflate stream (unverified) | no ZIP64, encryption or methods other than stored/Deflate |
+| TXT | content heuristics (tolerates a few NULs) | strict UTF-8 scan with exact damaged byte ranges | recovers intact lines; repaired text marks lost bytes with `�` | encoding is an estimate without BOM; lost bytes are never guessed |
+| Raw disk image | n/a | read-only signature carving of contiguous files | extracts candidates and analyses each | no file systems, fragments or deleted-file metadata |
+| GIF, BMP, WebP, WAV, MP3, MP4, SQLite, OLE2… | signature only | none | none | reported as "recognised, not analysed" |
+| Executables / scripts | signature | none | none | identified and flagged; **never executed** |
+
+The live capability matrix is also inside **File Recovery → Capability matrix** and is checked by automated tests.
+
+## What is new in this edition
+
+- Own **Deflate compressor** (LZ77 + fixed Huffman) so examples use real compression; the engine's own decoder, not a copy of the original, recovers them.
+- **PNG repair verified by Adler-32**: damaged CRC fields, signature or IEND are repaired without touching image bytes.
+- **Signature-damaged files** are identified by internal structure (PNG IHDR, ZIP central directory).
+- **ZIP**: local header signature restoration (in place), unverified readable prefix exported separately.
+- **Text**: exact damaged byte ranges, intact-line recovery, honest `�` marking.
+- **Resurrection Lab**, **guided demo**, **TRY QUETZAL NOW**, deterministic **diagnosis explainer**, bilingual (ES/EN) with light/dark/system themes.
+
+## Run locally
+
+Requires Node.js 22.12+ (22.x, 24.x or 26+).
 
 ```sh
 npm ci
-npm run dev      # http://localhost:3000
+npm run dev        # http://localhost:3000
+npm test           # 329 tests
+npm run lint
+npm run typecheck
+npm run build && npx next start -p 4173
 ```
 
-Comprobaciones: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
+## Architecture
 
-## Privacidad
+```
+bytes (in memory, read-only) → identify (signatures / structure) → format analyzer → report
+                                          │                           │              │
+                                    lib/filerec/identify.ts   png / jpeg / pdf / zip / text   SHA-256, findings,
+                                                                                              damaged ranges (+sectors),
+                                                                                              verified items, repair
+Lab:  lib/filerec/lab.ts (examples + runner + checks against the original) → app/resurrection-lab.tsx
+```
 
-Los archivos se procesan en el navegador y no se envían a ningún servidor. Los proyectos guardados viven en `localStorage` de ese navegador y se pierden si se borra. No cargar datos sensibles en equipos compartidos. No requiere variables de entorno.
+See [docs/competition-brief.md](docs/competition-brief.md), [docs/architecture.md](docs/architecture.md), [docs/recuperacion-universal.md](docs/recuperacion-universal.md) (engine audit and roadmap, Spanish) and [docs/test-log.md](docs/test-log.md).
 
-## Limitaciones
+## Safety and privacy
 
-El lector DBF se ha probado con archivos sintéticos; no hay verificación con archivos reales de sistemas heredados.
+Files are processed in memory in your browser and never sent anywhere. Limits: 8 MiB per file, 1000 entries, 16 MiB per stream, 64 MiB total, 200:1 decompression ratio, 8 s per file. ZIP entry names are normalised against zip-slip. Programs are identified but never run. No environment variables or paid services are required.
 
-Ver [arquitectura](docs/architecture.md), [decisiones](docs/decisions.md), [registro de pruebas](docs/test-log.md) y [plan Kiro](.kiro/README.md). Logo suministrado por el usuario; la licencia MIT se aplica al código, no implica cesión de derechos sobre la marca o imagen.
+## Credits
+
+Built with Kiro specs (see [.kiro/](.kiro/)) and extended in the `feat/competition-winner-edition` branch. MIT licence applies to the code, not to the brand imagery.
