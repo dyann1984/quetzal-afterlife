@@ -16,7 +16,7 @@ Damaged files (a broken CRC, an erased signature, a cut download, zeroed sectors
 ## Differentiators vs. a "pretty demo"
 - Real bytes, real parsers, real progress (stages and timings are measured, not animated).
 - A negative control (example 5) that proves the engine does not fabricate data.
-- 329 automated tests, including cross-checks against Node's zlib and fuzz-style truncation/corruption.
+- 345 automated tests plus a browser E2E script (`scripts/e2e-lab-console.js`, 23/23 checks), including cross-checks against Node's zlib and fuzz-style truncation/corruption.
 - Capability matrix kept honest by tests.
 
 ## 3-minute judge script (matches the in-app guided demo)
@@ -28,10 +28,12 @@ Damaged files (a broken CRC, an erased signature, a cut download, zeroed sectors
 | 1:00 | Real analysis | Hashing → identification → analysis/repair, with measured timings |
 | 1:25 | Before / after | Original · damaged · recovered side by side |
 | 1:50 | Verification | SHA-256 of the recovered file equals the original; confidence level derived from checksums |
-| 2:15 | Download | Recovered file, safe ZIP, JSON report; the other five examples |
+| 2:15 | Download | Recovered file, safe ZIP, JSON report; the other eight examples (incl. GIF, BMP, WAV) |
 | 2:40 | Innovation | Honesty contract, own Deflate, structure-based identification |
 
-Manual path: Dashboard → **TRY QUETZAL NOW** → *Run all 6 examples* → read the summary table (all six show their checks ✓; example 5 shows confidence NONE by design).
+Manual path: Dashboard → **TRY QUETZAL NOW** → *Run all 9 examples* → read the summary table (all nine show their checks ✓; example 5 shows confidence NONE and examples 7–9 confidence LOW, both by design).
+
+**For a non-technical judge:** each result opens with the confidence level and a plain-language explanation ("Quetzalito explains", deterministic rules). Examples 7–9 can be *seen and heard*: the original, damaged and recovered GIF/BMP are shown by the browser's own decoder, and the WAV has three audio players (1.5 s original, 0.825 s recovered).
 
 ## Artificial intelligence: what is and is not claimed
 - The explanation panel and the assistant (Quetzalito) are **deterministic rule/keyword systems**. They are labelled as such in the UI.
@@ -49,7 +51,8 @@ One original assertion was updated: the Quetzalito test that counted 13 sections
 - No file-system parsing (FAT/NTFS/ext) and no fragmented-file reassembly.
 - PNG repair of truncated files recovers only whole, CRC-valid chunks (rows beyond that are not guessed).
 - The hologram is the previously approved asset; improving its artistry needs the commissioned 3D model (see `docs/encargo-3d/`).
-- Lighthouse was not run in this environment; see test-log.
+- GIF/BMP/WAV: structure only (no LZW decoding, no audio decoding); their pixels/samples are never marked verified, and the BMP repair fills missing rows with zeros. Tested only with synthetic files.
+- Lighthouse (headless Chrome, software WebGL): accessibility 100, best practices 100, SEO 100; performance 54–67 because the headless run renders the hologram without a GPU (Total Blocking Time ≈ 1 s). With WebGL disabled the same page scores 87 (TBT 30 ms); on a real Intel UHD 630 GPU the browser recorded no long tasks. Details in test-log.
 
 ## Kiro contributions
 Specs in `.kiro/specs/` (DBF archaeology, inventory reconstruction) and steering files precede this branch and are preserved untouched. This branch's work is documented in the commit history (`git log feat/integracion-final..feat/competition-winner-edition`).

@@ -10,12 +10,12 @@ QUETZAL recovers what is **verifiably** recoverable from damaged digital files a
 ## Try it in 30 seconds
 
 1. Open the app and press **TRY QUETZAL NOW** (Dashboard) → **Resurrection Lab**.
-2. Pick one of six damaged files, press **Run analysis**.
+2. Pick one of nine damaged files, press **Run analysis** (or **Run all 9 examples**).
 3. Watch the real engine run, compare before/after, check the SHA-256 against the original, and download the recovered file and the technical report.
 
 Prefer a guided tour? Press **▶ Guided demo · 3 min** on the Dashboard. Steps 4–7 execute the real engine; nothing is pre-recorded.
 
-## Resurrection Lab: the six examples
+## Resurrection Lab: the nine examples
 
 Every example is generated deterministically by code (original + damaged file), so results are reproducible and the verdict is checked against the original.
 
@@ -27,6 +27,11 @@ Every example is generated deterministically by code (original + damaged file), 
 | 4 | ZIP with one damaged Deflate stream | 2 of 3 entries verify; the damaged one yields only a readable prefix | Partial; prefix labelled **NOT verified** |
 | 5 | PNG overwritten with random data | No header, no image data, entropy ≈ 8 bits/byte | **Unrecoverable**: no repaired file is offered |
 | 6 | PNG truncated at 60 % | Rows from complete, CRC-valid IDAT chunks are decoded | Partial: recovered rows identical to the original's |
+| 7 | Animated GIF cut mid-frame | 2 of 4 frames are complete; the trailer is missing | Partial: the 2 complete frames kept byte-identical + trailer; the browser's own decoder reads exactly 2 frames. Pixels **not verified** (no LZW decoding) |
+| 8 | BMP truncated (60 of 96 rows) | Header declares more rows than the file holds | Partial: rows present identical; missing rows are **zero filler**, labelled as such |
+| 9 | WAV cut at 55 % mid-sample | RIFF/data sizes no longer match the file | Partial: trimmed to whole samples, sizes corrected; browser decodes 0.825 s of 1.5 s. Samples **not verified** (PCM has no checksum) |
+
+Examples 7–9 have confidence **LOW** by design: their content has no checksum, so the engine never claims verification.
 
 The "explanation" panel is produced by deterministic rules from the technical report. **It is not generative AI** and calls no external service.
 
@@ -40,7 +45,10 @@ The "explanation" panel is produced by deterministic rules from the technical re
 | ZIP / DOCX / XLSX | signature, or central directory if signature damaged | CRC-32 per entry, central directory vs local headers | restores local signatures in place; rebuilds a ZIP from verified entries; readable prefix of a broken Deflate stream (unverified) | no ZIP64, encryption or methods other than stored/Deflate |
 | TXT | content heuristics (tolerates a few NULs) | strict UTF-8 scan with exact damaged byte ranges | recovers intact lines; repaired text marks lost bytes with `�` | encoding is an estimate without BOM; lost bytes are never guessed |
 | Raw disk image | n/a | read-only signature carving of contiguous files | extracts candidates and analyses each | no file systems, fragments or deleted-file metadata |
-| GIF, BMP, WebP, WAV, MP3, MP4, SQLite, OLE2… | signature only | none | none | reported as "recognised, not analysed" |
+| GIF | signature | header, block structure, complete frames, trailer | keeps complete frames and adds the trailer | **no LZW decoding**; pixels not verified |
+| BMP | `BM` + header checks | headers, declared vs. present rows, declared size | missing rows filled with zeros (flagged as filler), size corrected | RLE only by header; filler is not recovered data |
+| WAV | `RIFF…WAVE` | `fmt `/`data` chunks, declared vs. present audio | trims to whole samples, fixes RIFF/data sizes | no audio decoding; PCM has no checksum |
+| TIFF, WebP, MP3, MP4, SQLite, OLE2… | signature only | none | none | reported as "recognised, not analysed" |
 | Executables / scripts | signature | none | none | identified and flagged; **never executed** |
 
 The live capability matrix is also inside **File Recovery → Capability matrix** and is checked by automated tests.
@@ -61,18 +69,20 @@ Requires Node.js 22.12+ (22.x, 24.x or 26+).
 ```sh
 npm ci
 npm run dev        # http://localhost:3000
-npm test           # 329 tests
+npm test           # 345 tests
 npm run lint
 npm run typecheck
 npm run build && npx next start -p 4173
 ```
+
+Browser E2E: with the production build open, paste [scripts/e2e-lab-console.js](scripts/e2e-lab-console.js) into the browser console. It runs the nine examples, checks that the browser itself decodes the recovered GIF/BMP/WAV and that each download matches the report's SHA-256.
 
 ## Architecture
 
 ```
 bytes (in memory, read-only) → identify (signatures / structure) → format analyzer → report
                                           │                           │              │
-                                    lib/filerec/identify.ts   png / jpeg / pdf / zip / text   SHA-256, findings,
+                                    lib/filerec/identify.ts   png / jpeg / pdf / zip / text / gif / bmp / wav   SHA-256, findings,
                                                                                               damaged ranges (+sectors),
                                                                                               verified items, repair
 Lab:  lib/filerec/lab.ts (examples + runner + checks against the original) → app/resurrection-lab.tsx
