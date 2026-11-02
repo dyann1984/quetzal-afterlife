@@ -13,9 +13,10 @@ import {buildAppModel,createWorkingCopy,insertRow,updateRow,deleteRow,search,rel
 import {buildDossier,verifyDossier,dossierJson,renderReportMarkdown,renderReportHtml,type Dossier,type TransformationStep,type VersionEntry} from '../lib/vault';
 import {buildScenario,SCENARIO_LABEL,SCENARIO_DAMAGE} from '../lib/scenario';
 import FileRecovery from './file-recovery';
+import ResurrectionLab from './resurrection-lab';
 import {tr,tf,tm,nf} from '../lib/i18n';
 
-export const ENGINE_SECTIONS=['Discovery','Recovery','Schema Intelligence','Reconstruction','AI Analyst','Resurrection Studio','Evidence Vault','File Recovery'] as const;
+export const ENGINE_SECTIONS=['Resurrection Lab','Discovery','Recovery','Schema Intelligence','Reconstruction','AI Analyst','Resurrection Studio','Evidence Vault','File Recovery'] as const;
 export type EngineSection=(typeof ENGINE_SECTIONS)[number];
 
 const SEV:Record<string,string>={info:'vstatus-nc',aviso:'vstatus-only',dano:'vstatus-diff'};
@@ -154,6 +155,7 @@ export default function Engine({section,goto,experience}:{section:EngineSection|
  useEffect(()=>{sceneStore.set(sceneModel);},[sceneModel]);
  const hidden=section===null;
  return <><div hidden={hidden}>
+  {section==='Resurrection Lab'&&<ResurrectionLab/>}
   {section==='File Recovery'&&<FileRecovery/>}
   {section==='Discovery'&&<div className="workspace">
    <span className="kicker">{tr('DISCOVERY / DIAGNÓSTICO DE FORMATOS')}</span>

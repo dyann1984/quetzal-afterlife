@@ -203,7 +203,7 @@ export default function Home(){
    <div className="navlabel">{tr('ESPACIO DE TRABAJO')}</div>
    <nav aria-label={tr('Navegación principal')}>{sections.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['◈','＋','⌬','◇','▤'][i]}</span>{tr(s)}</button>)}</nav>
    <div className="navlabel" style={{marginTop:'22px'}}>{tr('MOTOR DE RESURRECCIÓN 2.0')}</div>
-   <nav aria-label={tr('Motor de resurrección')}>{ENGINE_SECTIONS.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['⌕','✚','⬡','⚙','✦','▣','⚿','⛁'][i]}</span>{tr(s)}</button>)}</nav>
+   <nav aria-label={tr('Motor de resurrección')}>{ENGINE_SECTIONS.map((s,i)=><button key={s} className={section===s?'active':''} onClick={()=>setSection(s)}><span className="navicon">{['✺','⌕','✚','⬡','⚙','✦','▣','⚿','⛁'][i]}</span>{tr(s)}</button>)}</nav>
    <div className="sidebottom"><span className="pulse"/> {tr('MOTOR 2.0')} <small>{tr('Recuperación · Local')}</small></div>
   </aside>
   <main>
@@ -224,6 +224,8 @@ export default function Home(){
       <span className="kicker">{tr('◈   EL PASADO TIENE FUTURO')}</span>
       <h1>{tr('La evidencia es')}<br/><em>{tr('el punto de partida.')}</em></h1>
       <p>{tr('Recupera el contexto de sistemas heredados y construye un camino verificable hacia su reconstrucción.')}</p>
+      <button className="try-now" data-testid="try-quetzal-now" onClick={()=>setSection('Resurrection Lab')}><span aria-hidden>✺</span>{tr('TRY QUETZAL NOW')}<span aria-hidden>→</span></button>
+      <p className="muted" style={{display:'block',margin:'8px 0 0',fontSize:11}}>{tr('6 archivos dañados reales · análisis en tu navegador · sin subir nada')}</p>
       <div style={{display:'flex',gap:'12px',flexWrap:'wrap'}}>
        <button className="primary" onClick={()=>setSection('Nueva recuperación')}>{tr('Iniciar recuperación')} <span>↗</span></button>
        <button className="secondary" onClick={loadDemo} style={{marginTop:'22px'}}>{tr('▶ Ver demo Kiroween')}</button>

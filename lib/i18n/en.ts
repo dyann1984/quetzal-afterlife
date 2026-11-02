@@ -13,6 +13,7 @@ export const EN:Record<string,string>={
  // ── Dashboard ──────────────────────────────────────────────────────
  '◈ \u00A0 EL PASADO TIENE FUTURO':'◈ \u00A0 THE PAST HAS A FUTURE','La evidencia es':'Evidence is','el punto de partida.':'the starting point.',
  'Recupera el contexto de sistemas heredados y construye un camino verificable hacia su reconstrucción.':'Recover the context of legacy systems and build a verifiable path toward rebuilding them.',
+ '6 archivos dañados reales · análisis en tu navegador · sin subir nada':'6 real damaged files · analysis in your browser · nothing is uploaded',
  'Iniciar recuperación':'Start recovery','▶ Ver demo Kiroween':'▶ Watch the Kiroween demo','Motor 2.0: descubrir y reconstruir →':'Engine 2.0: discover and rebuild →',
  'TU ESPACIO DE TRABAJO':'YOUR WORKSPACE','El camino de la recuperación':'The recovery path','FASE 03 / VERIFICACIÓN':'PHASE 03 / VERIFICATION','DISPONIBLE':'AVAILABLE',
  'Importa evidencia CSV y DBF y examina su estructura.':'Import CSV and DBF evidence and examine its structure.',
