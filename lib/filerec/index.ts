@@ -11,10 +11,11 @@ import { jpegAnalyzer } from './jpeg';
 import { pdfAnalyzer } from './pdf';
 import { zipAnalyzer, buildZip } from './zip';
 import { textAnalyzer } from './text';
+import { gifAnalyzer, bmpAnalyzer, wavAnalyzer } from './media';
 import { carve, type Carved, type CarveResult } from './carve';
 import type { Analyzer, FileReport } from './types';
 
-export const ANALYZERS: Record<string, Analyzer> = { png: pngAnalyzer, jpeg: jpegAnalyzer, pdf: pdfAnalyzer, zip: zipAnalyzer, text: textAnalyzer };
+export const ANALYZERS: Record<string, Analyzer> = { png: pngAnalyzer, jpeg: jpegAnalyzer, pdf: pdfAnalyzer, zip: zipAnalyzer, text: textAnalyzer, gif: gifAnalyzer, bmp: bmpAnalyzer, wav: wavAnalyzer };
 export * from './types';
 export { DEFAULT_LIMITS, buildZip, identify, carve };
 

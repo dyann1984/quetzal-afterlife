@@ -42,7 +42,11 @@ export const CAPACIDADES: readonly Capacidad[] = [
     soporta: 'Marcadores, dimensiones, tablas DQT/DHT, datos de escaneo, comentarios; detección de truncamiento; añade EOI.',
     limitaciones: 'No decodifica píxeles: no se puede afirmar cuánta imagen es legible tras un corte; los bytes de escaneo se marcan NO verificados.', riesgos: RIESGO_PARSER,
     dependencias: NINGUNA + '; un decodificador de entropía permitiría verificar píxeles', modulo: 'lib/filerec/jpeg.ts', pruebas: 'lib/filerec/real-files.test.ts', datosReales: 'JPEG real de Windows (omitido si no existe)' },
-  { id: 'imagenes-otras', area: 'fotografias', formato: 'GIF, TIFF, BMP, WebP', estado: 'parcial',
+  { id: 'gif-bmp', area: 'fotografias', formato: 'GIF, BMP', estado: 'parcial',
+    soporta: 'GIF: cabecera, bloques, cuadros completos, terminador; reparación conservando cuadros íntegros. BMP: cabeceras, filas presentes vs. esperadas, tamaño declarado; reparación rellenando filas ausentes con ceros (declarado).',
+    limitaciones: 'Sin decodificación LZW ni lectura de píxeles; BMP con RLE solo por cabecera; las filas rellenadas no son datos recuperados; probado solo con archivos sintéticos.', riesgos: RIESGO_PARSER,
+    dependencias: NINGUNA, modulo: 'lib/filerec/media.ts', pruebas: 'lib/filerec/media.test.ts', datosReales: 'ninguno' },
+  { id: 'imagenes-otras', area: 'fotografias', formato: 'TIFF, WebP', estado: 'parcial',
     soporta: 'Identificación por firma binaria y detección de extensión engañosa.', limitaciones: 'No se verifica integridad ni se extrae contenido.', riesgos: 'Un archivo puede declararse "imagen" y no serlo: solo hay firma.',
     dependencias: 'adaptadores por formato (pendientes)', modulo: 'lib/filerec/identify.ts', pruebas: 'lib/filerec/filerec.test.ts', datosReales: 'ninguno' },
   { id: 'raw-fotografia', area: 'fotografias', formato: 'RAW de cámara (CR2, NEF, DNG…)', estado: 'no-implementado', soporta: 'Nada.', limitaciones: 'Contenedores TIFF propietarios.', riesgos: 'Formatos sin especificación pública completa.', dependencias: 'especificaciones y muestras reales', modulo: null, pruebas: null, datosReales: 'ninguno' },
@@ -62,7 +66,11 @@ export const CAPACIDADES: readonly Capacidad[] = [
   { id: 'ole2', area: 'documentos', formato: 'DOC/XLS/PPT heredados (OLE2)', estado: 'parcial', soporta: 'Identificación por firma.', limitaciones: 'No se leen los flujos CFB ni el contenido.', riesgos: 'Pueden contener macros: nunca se ejecutan.', dependencias: 'lector CFB (pendiente)', modulo: 'lib/filerec/identify.ts', pruebas: 'lib/filerec/filerec.test.ts', datosReales: 'ninguno' },
 
   // ── Audio y video ───────────────────────────────────────────────────────────
-  { id: 'audio-video', area: 'audio-video', formato: 'MP3, WAV, FLAC, Ogg, MP4/MOV, MKV/WebM, AVI', estado: 'parcial',
+  { id: 'wav', area: 'audio-video', formato: 'WAV (RIFF/PCM)', estado: 'parcial',
+    soporta: 'Chunks fmt y data, duración declarada vs. presente, detección de truncamiento; reparación que recorta a muestras completas y corrige tamaños RIFF/data.',
+    limitaciones: 'No decodifica ni reproduce audio; el PCM no tiene suma de comprobación (las muestras no se marcan verificadas); probado solo con archivos sintéticos.', riesgos: RIESGO_PARSER,
+    dependencias: NINGUNA, modulo: 'lib/filerec/media.ts', pruebas: 'lib/filerec/media.test.ts', datosReales: 'ninguno' },
+  { id: 'audio-video', area: 'audio-video', formato: 'MP3, FLAC, Ogg, MP4/MOV, MKV/WebM, AVI', estado: 'parcial',
     soporta: 'Identificación por firma.', limitaciones: 'No hay análisis estructural (átomos MP4, chunks RIFF, tramas) ni extracción: no se recupera audio ni video.', riesgos: 'Los contenedores pueden estar truncados sin que se detecte.',
     dependencias: 'adaptadores de contenedor (pendientes)', modulo: 'lib/filerec/identify.ts', pruebas: 'lib/filerec/filerec.test.ts', datosReales: 'ninguno' },
 

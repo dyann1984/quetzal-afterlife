@@ -122,3 +122,14 @@ Entorno: Windows 11, Node v22.23.2, npm 10.9.8.
 | Demo guiada | PASS | 8 pasos recorridos; pasos 4–7 usan el motor real |
 | Lighthouse / axe | NO EJECUTADO | no hay herramienta instalada en este entorno; revisión manual: roles `tablist`, `progressbar`, `alert`, foco visible, `prefers-reduced-motion` |
 | SHA-256 | PASS | ejemplos 1 y 3: SHA-256 del reparado = SHA-256 del original (prueba automática y en navegador) |
+
+### Recuperación tras apagón y analizadores GIF/BMP/WAV (2026-11-02)
+
+Estado recuperado desde Git (árbol limpio, 7 commits de la edición): 329/329, tsc, lint y build en verde. Añadido `lib/filerec/media.ts` (GIF, BMP, WAV estructurales, con reparación declarada) y `media.test.ts`.
+
+| Comprobación | Resultado |
+|---|---|
+| Pruebas | PASS, 26 archivos, **340/340** (+11 nuevas; el test de «formato sin analizador» ahora usa TIFF) |
+| typecheck / lint / build | PASS / 0 avisos / OK |
+| Datos reales | NO: todo GIF/BMP/WAV de prueba es sintético; sin decodificación LZW ni de audio |
+| UI en navegador de los nuevos formatos | NO PROBADO todavía |

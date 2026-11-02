@@ -29,9 +29,9 @@ describe('identificación por firma', () => {
     expect(r.items).toEqual([]);
   });
   it('formatos reconocidos sin analizador se declaran como no analizados (no se inventa contenido)', async () => {
-    const gif = concat([ascii('GIF89a'), new Uint8Array(40)]);
-    const r = await analyzeFile(gif, 'a.gif');
-    expect(r.format).toBe('gif');
+    const gif = concat([new Uint8Array([0x49, 0x49, 0x2a, 0x00]), new Uint8Array(40)]);
+    const r = await analyzeFile(gif, 'a.tif');
+    expect(r.format).toBe('tiff-le');
     expect(r.integrity).toBe('no-analizado');
     expect(r.items.length).toBe(0);
   });
